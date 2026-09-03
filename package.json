@@ -10,8 +10,9 @@
     "db:generate": "pnpm --filter @barber/db generate",
     "db:migrate": "pnpm --filter @barber/db migrate",
     "db:studio": "pnpm --filter @barber/db studio",
-    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+    "infra:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.dev.yml down",
+    "test": "pnpm --filter @barber/domain test && pnpm --filter @barber/db test:guarantees"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

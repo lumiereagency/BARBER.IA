@@ -21,6 +21,7 @@ documento, que refletia decisões tomadas antes da Parte 2 chegar. Leia junto de
 | Google Calendar | Adapter chamado pelo worker, idempotente por `external_event_id` | Só saída na V1. |
 | Cobrança | Adapter plugável | Provedor pendente (decisão §19 #3). |
 | Armazenamento | Compatível com S3 | Prefixo separado por barbearia. |
+| Hospedagem | VPS Dockerizada (Parte 3 §2) | Substitui a escolha anterior por plataforma gerenciada. Proxy Caddy com TLS automático; Postgres e Redis apenas na rede interna do Docker, sem portas publicadas. Banco e Redis são externos por configuração, então a migração para serviços gerenciados não exige mudança de código. |
 
 Multi-tenancy: schema único isolado por `barbershop_id`, resolvido sempre no
 servidor a partir da sessão ou da rota pública — nunca aceito do cliente.
@@ -86,7 +87,14 @@ Postgres real).
 - **Auditoria de qualquer ator**: `audit_logs` com `actor_type` polimórfico
   (equipe, cliente, sistema, superadmin), não só do superadmin.
 
-## 5. O que ainda não existe
+## 5. Operação
+
+Backup, restauração, RPO/RTO declarados e procedimento de perda da VPS estão em
+`docs/runbook-operacao.md`. O empacotamento fica em `infra/docker/`:
+`docker-compose.dev.yml` (desenvolvimento, publica portas só em localhost) e
+`docker-compose.prod.yml` (produção, nenhuma porta de banco publicada).
+
+## 6. O que ainda não existe
 
 Motor de disponibilidade, regras da Agenda Inteligente, autenticação,
 implementação dos endpoints, telas e adapters de integração. Os contratos

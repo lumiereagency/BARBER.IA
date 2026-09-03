@@ -1,0 +1,139 @@
+# Produção na VPS (Parte 3 §3 e §5).
+#
+# Regra que não pode ser afrouxada: postgres e redis NÃO publicam portas.
+# Eles só existem na rede interna do Docker — a defesa não depende de firewall
+# bem configurado. Apenas o proxy fala com a internet.
+#
+# Uso:
+#   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d
+
+name: barber
+
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?defina APP_DOMAIN}
+    depends_on:
+      web:
+        condition: service_healthy
+    networks: [edge, internal]
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.Dockerfile
+    restart: unless-stopped
+    # Sem "ports": só o proxy alcança a web
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?}
+      REDIS_URL: ${REDIS_URL:?}
+      AUTH_SECRET: ${AUTH_SECRET:?}
+      TOKEN_HMAC_SECRET: ${TOKEN_HMAC_SECRET:?}
+      APP_BASE_URL: ${APP_BASE_URL:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?}
+      REDIS_URL: ${REDIS_URL:?}
+      TOKEN_HMAC_SECRET: ${TOKEN_HMAC_SECRET:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # Sem "ports" — nunca exposto à internet (§5)
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # WAL arquivado para restauração ponto-a-ponto; o envio para storage
+      # externo é feito pelo job de backup (ver docs/runbook-operacao.md)
+      - postgres_wal:/wal_archive
+    command:
+      - "postgres"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=test ! -f /wal_archive/%f && cp %p /wal_archive/%f"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=1GB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Sem "ports" (§5)
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+networks:
+  # Só o proxy participa da rede exposta
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  postgres_wal:
+  redis_data:
+  caddy_data:
+  caddy_config:

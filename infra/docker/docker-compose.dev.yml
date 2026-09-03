@@ -1,3 +1,6 @@
+# Ambiente de DESENVOLVIMENTO. Para produção use docker-compose.prod.yml,
+# que não publica porta alguma de banco (Parte 3 §5).
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -6,7 +9,8 @@ services:
       POSTGRES_PASSWORD: barber
       POSTGRES_DB: barber_dev
     ports:
-      - "5432:5432"
+      # Só localhost: nunca alcançável de fora da máquina de desenvolvimento
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +23,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:

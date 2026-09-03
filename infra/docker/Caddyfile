@@ -1,0 +1,31 @@
+# TLS automático (Let's Encrypt) e renovação sem cron próprio.
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# A aplicação é a única coisa alcançável de fora
+	reverse_proxy web:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		# Os tokens de gestão e de vaga viajam no CAMINHO da URL (/a/{token},
+		# /vaga/{token}). Sem esta redação, quem lê o log do proxy consegue
+		# cancelar a reserva de qualquer cliente (Parte 3 §10, vazamento em logs).
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "/(a|vaga|espera)/[^/?]+" "/$1/REDACTED"
+				request>headers>Authorization delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}

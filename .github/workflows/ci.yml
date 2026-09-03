@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    # Postgres e Redis reais: as garantias centrais do produto (constraint de
+    # exclusão, advisory lock, índice parcial) não existem fora do Postgres,
+    # então testá-las contra mock seria testar ficção (Parte 3 §6).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: barber
+          POSTGRES_PASSWORD: barber
+          POSTGRES_DB: barber_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U barber -d barber_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://barber:barber@localhost:5432/barber_test
+      REDIS_URL: redis://localhost:6379
+      AUTH_SECRET: ci-only-not-a-real-secret
+      TOKEN_HMAC_SECRET: ci-only-not-a-real-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Testes unitários (domínio puro)
+        run: pnpm --filter @barber/domain test
+
+      - name: Aplicar migrações
+        run: pnpm --filter @barber/db exec prisma migrate deploy
+
+      - name: Testes de garantia do banco
+        run: pnpm --filter @barber/db exec node tests/guarantees.test.mjs
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Build
+        run: pnpm --filter @barber/web build
+
+  # Migração destrutiva nunca pode entrar sem revisão explícita (Parte 3 §6).
+  migration-guard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Barrar DDL destrutivo sem aprovação
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          CHANGED=$(git diff --name-only "$BASE"...HEAD -- 'packages/db/prisma/migrations/**/*.sql')
+          if [ -z "$CHANGED" ]; then
+            echo "Nenhuma migração nova."
+            exit 0
+          fi
+          echo "Migrações alteradas:"; echo "$CHANGED"
+          if grep -inE '^\s*(ALTER TABLE .* DROP COLUMN|DROP TABLE|DROP COLUMN|ALTER TABLE .* RENAME)' $CHANGED; then
+            if echo "${{ join(github.event.pull_request.labels.*.name, ',') }}" | grep -q 'migracao-destrutiva-aprovada'; then
+              echo "DDL destrutivo aprovado por label."
+            else
+              echo "::error::DDL destrutivo detectado. Use expand/contract (docs/delivery-part3.md §6) ou aplique a label 'migracao-destrutiva-aprovada' num PR dedicado."
+              exit 1
+            fi
+          fi
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Procurar segredo commitado
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "::error::.env versionado"; exit 1
+          fi
+          # Chaves de API e credenciais óbvias no conteúdo versionado
+          if git grep -nEI '(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|sk_live_[0-9a-zA-Z]{16,})' -- . ':!*.lock' ':!pnpm-lock.yaml'; then
+            echo "::error::possível segredo no repositório"; exit 1
+          fi
+          echo "Nenhum segredo encontrado."
