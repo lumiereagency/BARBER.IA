@@ -77,6 +77,13 @@ export default async function ManageAppointmentPage({ params }: { params: { toke
         <p className="mt-4 text-sm text-neutral-500">{shop.cancellationPolicy}</p>
       ) : null}
 
+      <p className="mt-4 text-sm text-neutral-500">
+        Quer ver todos os seus horários num lugar só?{" "}
+        <a href="/entrar-cliente" className="font-medium text-neutral-900 underline">
+          Criar conta
+        </a>
+      </p>
+
       <div className="mt-6">
         <ManageActions
           token={params.token}

@@ -8,7 +8,7 @@ import {
   NotFoundError,
   PolicyError,
   SlotUnavailableError,
-} from "./booking";
+} from "./booking.ts";
 
 export type ErrorCode =
   | "VALIDATION_ERROR"

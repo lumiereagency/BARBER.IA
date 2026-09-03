@@ -269,6 +269,22 @@ export function BookingWizard({
           ) : null}
         </div>
 
+        {/* Convite de conta (Parte 1 §10): vem DEPOIS do valor entregue,
+            nunca como requisito para agendar. */}
+        <div className="rounded-xl border border-neutral-200 p-5 text-center">
+          <p className="font-medium text-neutral-900">Fique conectado com sua barbearia</p>
+          <p className="mt-1 text-sm text-neutral-600">
+            Crie sua conta gratuitamente para acompanhar seus horários, marcar de novo com
+            poucos toques e receber promoções em primeira mão.
+          </p>
+          <a
+            href="/entrar-cliente"
+            className="mt-3 inline-block rounded-lg border border-neutral-900 px-4 py-2.5 text-sm font-medium text-neutral-900"
+          >
+            Criar minha conta
+          </a>
+        </div>
+
         <p className="text-center text-sm text-neutral-500">
           Guarde o link de gerenciamento: é por ele que você cancela ou remarca.
         </p>
