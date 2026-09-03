@@ -61,7 +61,7 @@ export default async function TodayPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-xl font-semibold text-neutral-900">Hoje</h1>
-        <p className="mt-1 text-sm capitalize text-neutral-500">
+        <p className="mt-1 text-sm text-neutral-500 first-letter:uppercase">
           {new Date(`${today}T12:00:00Z`).toLocaleDateString("pt-BR", {
             weekday: "long",
             day: "numeric",

@@ -67,10 +67,12 @@ infra/docker    Postgres + Redis para desenvolvimento
 
 ## Status
 
-Marcos 0, 1 e 2 concluídos: autenticação da equipe com sessão revogável e RBAC,
-onboarding do proprietário, configuração de serviços, equipe e jornada, e o
-motor de agendamento com fluxo público ponta a ponta.
+Marcos 0 a 3 concluídos: autenticação da equipe com sessão revogável e RBAC,
+onboarding do proprietário, configuração de serviços, equipe e jornada, motor
+de agendamento com fluxo público ponta a ponta, e o painel diário — agenda por
+dia e semana, encaixe no balcão, concluído/não veio, bloqueio de período e
+atalhos de WhatsApp manual.
 
-A seguir, Marco 3 (painel diário: agenda semanal, reserva manual, concluído e
-no-show). Pendências de lançamento seguem em `docs/delivery-part3.md` §10 —
-a mais urgente são os textos legais, que o consentimento grava por versão.
+A seguir, Marco 4 (conta do consumidor e CRM automático). Pendências de
+lançamento seguem em `docs/delivery-part3.md` §10 — a mais urgente são os
+textos legais, que o consentimento grava por versão.

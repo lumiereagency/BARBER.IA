@@ -502,3 +502,289 @@ export async function findByManagementToken(token: string) {
     include: { barbershop: true },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Operação do dia (Marco 3)
+// ---------------------------------------------------------------------------
+
+export interface StatusChangeInput {
+  barbershopId: string;
+  appointmentId: string;
+  actorId: string;
+  /// Nulo quando quem age tem escopo amplo; preenchido quando é o barbeiro
+  /// agindo, e aí só a própria agenda é permitida.
+  restrictToProfessionalId?: string | null;
+}
+
+/// Transições permitidas na operação do balcão.
+///
+/// CONFIRMED é o único ponto de partida para concluir ou marcar falta; sair de
+/// COMPLETED/NO_SHOW só é possível voltando para CONFIRMED (correção de erro de
+/// clique), nunca pulando direto de um terminal para o outro.
+const TRANSICOES: Record<string, readonly string[]> = {
+  COMPLETED: ["CONFIRMED"],
+  NO_SHOW: ["CONFIRMED"],
+  CANCELLED_BY_SHOP: ["CONFIRMED"],
+  CONFIRMED: ["COMPLETED", "NO_SHOW"],
+};
+
+async function changeStatus(
+  input: StatusChangeInput,
+  target: "COMPLETED" | "NO_SHOW" | "CANCELLED_BY_SHOP" | "CONFIRMED",
+  eventType: string
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const appointment = await tx.appointment.findFirst({
+      // O tenant entra na busca, não numa checagem posterior: id de outra
+      // barbearia simplesmente não é encontrado.
+      where: { id: input.appointmentId, barbershopId: input.barbershopId },
+    });
+    if (!appointment) throw new NotFoundError("Agendamento não encontrado");
+
+    if (
+      input.restrictToProfessionalId &&
+      appointment.professionalId !== input.restrictToProfessionalId
+    ) {
+      throw new PolicyError("Este agendamento é de outro profissional");
+    }
+
+    const permitidas = TRANSICOES[target] ?? [];
+    if (!permitidas.includes(appointment.status)) {
+      throw new PolicyError(
+        `Não é possível mudar de ${appointment.status} para ${target}`
+      );
+    }
+
+    await tx.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: target,
+        completedAt: target === "COMPLETED" ? new Date() : null,
+        cancelledAt: target === "CANCELLED_BY_SHOP" ? new Date() : null,
+        version: { increment: 1 },
+      },
+    });
+
+    await tx.appointmentEvent.create({
+      data: {
+        barbershopId: appointment.barbershopId,
+        appointmentId: appointment.id,
+        type: eventType,
+        actorType: "STAFF",
+        actorId: input.actorId,
+        metadata: { from: appointment.status, to: target },
+      },
+    });
+
+    // O CRM é recalculado por job: concluir atendimento muda frequência,
+    // ticket médio e próximo retorno estimado do cliente.
+    await tx.outboxEvent.create({
+      data: {
+        barbershopId: appointment.barbershopId,
+        type: "RECOMPUTE_CUSTOMER_CRM",
+        payload: { barbershopCustomerId: appointment.barbershopCustomerId },
+      },
+    });
+  });
+}
+
+export const completeAppointment = (input: StatusChangeInput) =>
+  changeStatus(input, "COMPLETED", "COMPLETED");
+
+export const markNoShow = (input: StatusChangeInput) =>
+  changeStatus(input, "NO_SHOW", "NO_SHOW");
+
+export const cancelByShop = (input: StatusChangeInput) =>
+  changeStatus(input, "CANCELLED_BY_SHOP", "CANCELLED_BY_SHOP");
+
+/// Desfaz um "concluído" ou "não compareceu" marcado por engano.
+export const revertToConfirmed = (input: StatusChangeInput) =>
+  changeStatus(input, "CONFIRMED", "STATUS_REVERTED");
+
+export interface ManualAppointmentInput {
+  barbershopId: string;
+  professionalId: string;
+  serviceId: string;
+  startsAt: Date;
+  customerName: string;
+  customerPhone: string;
+  actorId: string;
+  /// Nulo para quem tem escopo amplo; o barbeiro só cria na própria agenda.
+  restrictToProfessionalId?: string | null;
+}
+
+export interface ManualAppointmentResult {
+  appointmentId: string;
+  managementToken: string;
+}
+
+/// Reserva criada pela equipe no balcão.
+///
+/// Diferente do fluxo público em dois pontos deliberados: não exige hold (quem
+/// está no balcão já tem o cliente na frente) e não exige que o horário esteja
+/// na grade nem dentro da jornada — atendimento encaixado às 10h07 é rotina de
+/// barbearia. O que continua valendo é o conflito real: o advisory lock e a
+/// constraint de exclusão recusam sobreposição do mesmo profissional.
+export async function createManualAppointment(
+  input: ManualAppointmentInput
+): Promise<ManualAppointmentResult> {
+  if (input.restrictToProfessionalId && input.professionalId !== input.restrictToProfessionalId) {
+    throw new PolicyError("Você só pode criar reserva na sua própria agenda");
+  }
+
+  const normalizedPhone = normalizePhoneBR(input.customerPhone);
+  const managementToken = generateToken();
+
+  return prisma.$transaction(async (tx) => {
+    const service = await tx.service.findFirst({
+      where: { id: input.serviceId, barbershopId: input.barbershopId },
+    });
+    if (!service) throw new NotFoundError("Serviço não encontrado");
+
+    const professional = await tx.professional.findFirst({
+      where: { id: input.professionalId, barbershopId: input.barbershopId },
+    });
+    if (!professional) throw new NotFoundError("Profissional não encontrado");
+
+    const link = await tx.professionalService.findUnique({
+      where: {
+        professionalId_serviceId: {
+          professionalId: input.professionalId,
+          serviceId: input.serviceId,
+        },
+      },
+    });
+
+    const duration = link?.customDurationMinutes ?? service.durationMinutes;
+    const endsAt = addMinutes(input.startsAt, duration);
+    const occupiesFrom = addMinutes(input.startsAt, -service.bufferBeforeMinutes);
+    const occupiesTo = addMinutes(endsAt, service.bufferAfterMinutes);
+
+    await lockProfessional(tx, input.professionalId);
+    await purgeExpiredHolds(tx, input.professionalId);
+
+    const free = await slotIsFree(tx, input.professionalId, occupiesFrom, occupiesTo);
+    if (!free) throw new SlotUnavailableError();
+
+    const relation = await tx.barbershopCustomer.upsert({
+      where: {
+        barbershopId_normalizedPhone: {
+          barbershopId: input.barbershopId,
+          normalizedPhone,
+        },
+      },
+      update: { currentName: input.customerName },
+      create: {
+        barbershopId: input.barbershopId,
+        normalizedPhone,
+        currentName: input.customerName,
+      },
+    });
+
+    const appointment = await tx.appointment.create({
+      data: {
+        barbershopId: input.barbershopId,
+        barbershopCustomerId: relation.id,
+        professionalId: input.professionalId,
+        serviceId: input.serviceId,
+        startsAt: input.startsAt,
+        endsAt,
+        occupiesFrom,
+        occupiesTo,
+        bufferBeforeMinutes: service.bufferBeforeMinutes,
+        bufferAfterMinutes: service.bufferAfterMinutes,
+        status: "CONFIRMED",
+        priceSnapshotMinor: link?.customPriceMinor ?? service.priceMinor,
+        serviceNameSnapshot: service.name,
+        professionalNameSnapshot: professional.displayName,
+        customerNameSnapshot: input.customerName,
+        customerPhoneSnapshot: normalizedPhone,
+        source: "MANUAL",
+        managementTokenHash: hashToken(managementToken, tokenSecret()),
+        managementTokenExpiresAt: addMinutes(endsAt, 90 * 24 * 60),
+        createdByType: "STAFF",
+        createdById: input.actorId,
+      },
+    });
+
+    await tx.appointmentEvent.create({
+      data: {
+        barbershopId: input.barbershopId,
+        appointmentId: appointment.id,
+        type: "CREATED",
+        actorType: "STAFF",
+        actorId: input.actorId,
+        metadata: { source: "MANUAL" },
+      },
+    });
+
+    // Consentimento operacional: a equipe registrou o contato para tratar
+    // desta reserva. Marketing continua exigindo aceite próprio do cliente.
+    await tx.consent.create({
+      data: {
+        barbershopId: input.barbershopId,
+        barbershopCustomerId: relation.id,
+        channel: "WHATSAPP",
+        purpose: "OPERATIONAL",
+        status: "GRANTED",
+        textVersion: process.env.TERMS_VERSION ?? "dev-0",
+        source: "staff_manual",
+      },
+    });
+
+    return { appointmentId: appointment.id, managementToken };
+  });
+}
+
+export interface BlockTimeInput {
+  barbershopId: string;
+  professionalId: string;
+  startsAt: Date;
+  endsAt: Date;
+  reason?: string;
+  actorId: string;
+  restrictToProfessionalId?: string | null;
+}
+
+/// Bloqueio de período na agenda (almoço, dentista, imprevisto).
+///
+/// Não usa a constraint de exclusão — bloqueio é do profissional, e recusar por
+/// causa de reserva já confirmada seria pior: o dono precisa poder marcar que
+/// vai sair e resolver as reservas afetadas depois. Mas ele é avisado.
+export async function blockTime(input: BlockTimeInput): Promise<{ conflitos: number }> {
+  if (input.restrictToProfessionalId && input.professionalId !== input.restrictToProfessionalId) {
+    throw new PolicyError("Você só pode bloquear a sua própria agenda");
+  }
+  if (input.endsAt <= input.startsAt) {
+    throw new PolicyError("O fim do bloqueio precisa ser depois do início");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const professional = await tx.professional.findFirst({
+      where: { id: input.professionalId, barbershopId: input.barbershopId },
+    });
+    if (!professional) throw new NotFoundError("Profissional não encontrado");
+
+    await tx.scheduleBlock.create({
+      data: {
+        barbershopId: input.barbershopId,
+        professionalId: input.professionalId,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        reason: input.reason ?? null,
+        createdByUserId: input.actorId,
+      },
+    });
+
+    const conflitos = await tx.appointment.count({
+      where: {
+        professionalId: input.professionalId,
+        status: "CONFIRMED",
+        startsAt: { lt: input.endsAt },
+        endsAt: { gt: input.startsAt },
+      },
+    });
+
+    return { conflitos };
+  });
+}

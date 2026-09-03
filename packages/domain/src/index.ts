@@ -6,3 +6,4 @@ export * from "./tokens.js";
 export * from "./phone.js";
 export * from "./password.js";
 export * from "./slug.js";
+export * from "./whatsapp.js";
