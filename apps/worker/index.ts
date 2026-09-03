@@ -7,8 +7,15 @@
 // Cada handler precisa ser idempotente: o outbox garante entrega ao menos uma
 // vez, não exatamente uma vez.
 
+import { pathToFileURL } from "node:url";
+
 import { prisma } from "@barber/db";
-import { recomputeCustomerCrm } from "./handlers/crm";
+import {
+  reconcileCalendar,
+  syncAppointmentToCalendar,
+  syncRescheduledAppointment,
+} from "@barber/integrations";
+import { recomputeCustomerCrm } from "./handlers/crm.ts";
 
 const BATCH_SIZE = 20;
 const MAX_ATTEMPTS = 5;
@@ -19,11 +26,23 @@ const HANDLERS: Record<string, Handler> = {
   RECOMPUTE_CUSTOMER_CRM: (payload) =>
     recomputeCustomerCrm({ barbershopCustomerId: String(payload.barbershopCustomerId) }),
 
-  // Efeitos que dependem de integração externa entram nos marcos seguintes.
-  // Até lá são reconhecidos e descartados em vez de acumular como falha.
-  APPOINTMENT_CONFIRMED: async () => {},
-  APPOINTMENT_CANCELLED: async () => {},
-  APPOINTMENT_RESCHEDULED: async () => {},
+  // A sincronização é convergente: lê o estado atual do agendamento e faz o
+  // calendário refletir. Por isso os três eventos chamam a mesma coisa — o que
+  // decide criar ou remover é o banco, não o nome do evento.
+  APPOINTMENT_CONFIRMED: (payload) =>
+    syncAppointmentToCalendar({ appointmentId: String(payload.appointmentId) }),
+  APPOINTMENT_CANCELLED: (payload) =>
+    syncAppointmentToCalendar({ appointmentId: String(payload.appointmentId) }),
+  APPOINTMENT_RESCHEDULED: (payload) =>
+    syncRescheduledAppointment({
+      appointmentId: String(payload.appointmentId),
+      previousAppointmentId: payload.previousAppointmentId
+        ? String(payload.previousAppointmentId)
+        : null,
+    }),
+  /// Enfileirado pela reconciliação, não por uma mudança de domínio
+  SYNC_CALENDAR: (payload) =>
+    syncAppointmentToCalendar({ appointmentId: String(payload.appointmentId) }),
 };
 
 /// Espera exponencial: 1min, 2min, 4min… Falha transitória de rede não deve
@@ -119,13 +138,30 @@ export async function purgeExpiredHolds(): Promise<number> {
   return count;
 }
 
+/// Reconciliação é varredura, não reação: roda em intervalo próprio para não
+/// consultar todas as conexões a cada ciclo de 5 segundos.
+const RECONCILE_INTERVAL_MS = 5 * 60_000;
+let proximaReconciliacao = 0;
+
 async function tick(): Promise<void> {
   const liberados = await purgeExpiredHolds();
   const { processados, falhas } = await processBatch();
 
-  if (liberados || processados || falhas) {
+  let reconciliados = 0;
+  if (Date.now() >= proximaReconciliacao) {
+    proximaReconciliacao = Date.now() + RECONCILE_INTERVAL_MS;
+    // Falha aqui não pode derrubar o ciclo: o processamento do outbox é mais
+    // importante que a varredura, e ela tenta de novo em cinco minutos.
+    reconciliados = await reconcileCalendar().catch((error: unknown) => {
+      console.error("[worker] reconciliação falhou:", error);
+      return 0;
+    });
+  }
+
+  if (liberados || processados || falhas || reconciliados) {
     console.info(
-      `[worker] holds liberados: ${liberados}, eventos: ${processados}, falhas: ${falhas}`
+      `[worker] holds liberados: ${liberados}, eventos: ${processados}, ` +
+        `falhas: ${falhas}, reconciliados: ${reconciliados}`
     );
   }
 }
@@ -162,7 +198,13 @@ async function main(): Promise<void> {
 }
 
 // Só roda o laço quando executado direto; importar para teste não dispara nada.
-if (process.argv[1]?.includes("worker")) {
+// Comparar a URL do módulo com a do processo é o único jeito exato: casar o
+// caminho por substring faria o arquivo de teste, que também vive em `worker/`,
+// levantar o laço infinito.
+const executadoDireto =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (executadoDireto) {
   main().catch(async (error) => {
     console.error(error);
     await prisma.$disconnect();

@@ -38,6 +38,15 @@ cada poucos minutos.
 Também versionar fora da VPS: `.env.prod` (cifrado), `Caddyfile` e, se o
 WhatsApp for habilitado algum dia, a sessão do serviço.
 
+**`ENCRYPTION_KEY` merece cuidado próprio.** Ela cifra as credenciais de
+integração e vive **fora** do banco, de propósito: é o que faz um dump vazado
+não entregar o Google Agenda de ninguém. A consequência é que restaurar o banco
+sem ela deixa as conexões ilegíveis — o sistema trata isso sem quebrar (marca a
+integração como "precisa reconectar"), mas todo profissional teria de autorizar
+de novo. Guarde-a com o `.env.prod` cifrado, e nunca no mesmo objeto do dump.
+Trocá-la tem exatamente o mesmo efeito: só faça isso sabendo que vai custar uma
+rodada de reconexões.
+
 Retenção sugerida: 30 dias de base diária, 7 dias de WAL.
 
 ## Restauração (ensaio mensal obrigatório)

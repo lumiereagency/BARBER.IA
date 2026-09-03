@@ -18,6 +18,12 @@ const launchOptions = process.env.CHROMIUM_PATH
   ? { executablePath: process.env.CHROMIUM_PATH }
   : {};
 
+/// Ruído do roteador do Next, não defeito da aplicação: quando uma navegação
+/// cancela um prefetch em voo, o roteador registra a falha no console e refaz a
+/// navegação pelo caminho normal. Filtrar só esta mensagem mantém a asserção de
+/// "nenhum erro no console" valendo para tudo o mais.
+const RUIDO_DO_ROTEADOR = /Failed to fetch RSC payload/;
+
 let browser;
 let page;
 const problemas = [];
@@ -34,7 +40,8 @@ before(async () => {
 
   page.on("pageerror", (error) => problemas.push(String(error)));
   page.on("console", (message) => {
-    if (message.type() === "error") problemas.push(message.text());
+    if (message.type() === "error" && !RUIDO_DO_ROTEADOR.test(message.text()))
+      problemas.push(message.text());
   });
   // Ícones ausentes não são problema de aplicação
   page.on("response", (response) => {

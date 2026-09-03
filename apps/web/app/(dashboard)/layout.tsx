@@ -16,9 +16,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const nav = [
     { href: "/hoje", label: "Hoje", permission: "appointments.read.own" as const },
     { href: "/agenda", label: "Agenda", permission: "appointments.read.own" as const },
-    { href: "/clientes", label: "Clientes", permission: "customers.read" as const },
+    // "Clientes" volta quando a tela de CRM da equipe existir. Um item de menu
+    // que leva a lugar nenhum não é só um 404: o Next faz prefetch dele em toda
+    // página do painel, e a requisição pendente atrasa a navegação inteira.
     { href: "/equipe", label: "Equipe", permission: "professionals.read" as const },
     { href: "/gestao/servicos", label: "Serviços", permission: "services.read" as const },
+    {
+      href: "/gestao/integracoes",
+      label: "Integrações",
+      permission: "integrations.read" as const,
+    },
     {
       href: "/gestao/configuracoes",
       label: "Configurações",

@@ -6,7 +6,13 @@ const nextConfig = {
   // O monorepo vive acima de apps/web; o trace precisa enxergar a raiz
   outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
   // Pacotes do workspace são TypeScript consumidos direto da fonte
-  transpilePackages: ["@barber/db", "@barber/domain", "@barber/api-contracts", "@barber/config"],
+  transpilePackages: [
+    "@barber/db",
+    "@barber/domain",
+    "@barber/api-contracts",
+    "@barber/config",
+    "@barber/integrations",
+  ],
   experimental: {
     // O engine do Prisma é carregado dinamicamente, então o tracer do Next não
     // o enxerga sozinho: sem isto a imagem sobe e falha em toda query.

@@ -36,6 +36,7 @@ packages/
   db/                  schema Prisma, migrations, cliente, testes de garantia
   domain/              regras puras (sem React, sem SDK, sem Prisma)
   api-contracts/       contratos zod compartilhados entre front e back
+  integrations/        adapters externos (Google Calendar), usados pela web e pelo worker
   config/              variáveis de ambiente validadas
 infra/docker/          Postgres + Redis para desenvolvimento
 docs/
@@ -44,7 +45,7 @@ docs/
 ## 3. Garantias que vivem no banco
 
 Estão em `packages/db/prisma/migrations/*/migration.sql` e são verificadas por
-`pnpm --filter @barber/db test:guarantees` (14 asserções, todas contra um
+`pnpm --filter @barber/db test:guarantees` (17 asserções, todas contra um
 Postgres real).
 
 - **Anti-conflito de agenda**: `EXCLUDE USING gist (professional_id, tstzrange(starts_at, ends_at))`
@@ -84,6 +85,21 @@ Postgres real).
   `barbershop_customers` são atualizados por job e servem a perfil e relatórios
   de período. A tela "Hoje" lê agendamentos ao vivo, senão o faturamento
   realizado só mudaria quando o job rodasse.
+- **Integração externa é projeção, nunca fonte de verdade**: a sincronização
+  com o calendário é *convergente* — lê o estado atual do agendamento e faz o
+  calendário refletir, em vez de reproduzir a sequência de eventos. É o que
+  permite ao outbox entregar ao menos uma vez e fora de ordem sem que uma
+  confirmação atrasada ressuscite um horário cancelado. O `external_event_id`
+  em `appointment_calendar_syncs` é o que faz reprocessar atualizar em vez de
+  duplicar.
+- **Credencial de integração cifrada em repouso**: AES-256-GCM com chave em
+  `ENCRYPTION_KEY`, fora do banco. Um dump não entrega acesso ao calendário de
+  ninguém. GCM autentica além de cifrar: conteúdo adulterado falha em vez de
+  devolver lixo.
+- **Falha externa classificada antes de retentada**: transitória volta para a
+  fila com espera exponencial e limite de cinco tentativas; revogação apaga a
+  credencial e pede reconexão; erro permanente é registrado e encerrado.
+  Insistir em erro permanente só gastaria tentativa e atrasaria o aviso ao dono.
 - **Auditoria de qualquer ator**: `audit_logs` com `actor_type` polimórfico
   (equipe, cliente, sistema, superadmin), não só do superadmin.
 
@@ -96,6 +112,7 @@ Backup, restauração, RPO/RTO declarados e procedimento de perda da VPS estão 
 
 ## 6. O que ainda não existe
 
-Motor de disponibilidade, regras da Agenda Inteligente, autenticação,
-implementação dos endpoints, telas e adapters de integração. Os contratos
-públicos já estão tipados em `packages/api-contracts`.
+Agenda Inteligente e lista de espera (Marco 6), cobrança e Super Admin
+(Marco 7), WhatsApp por Baileys (Marco 8). O restante — motor de
+disponibilidade, autenticação, endpoints públicos, painel, área do cliente e a
+integração com o Google Agenda — está implementado e coberto por testes.

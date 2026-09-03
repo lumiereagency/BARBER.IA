@@ -585,6 +585,18 @@ async function changeStatus(
         payload: { barbershopCustomerId: appointment.barbershopCustomerId },
       },
     });
+
+    // Cancelar pela barbearia precisa tirar o evento do calendário externo;
+    // desfazer um "concluído" por engano precisa colocá-lo de volta.
+    if (target === "CANCELLED_BY_SHOP" || target === "CONFIRMED") {
+      await tx.outboxEvent.create({
+        data: {
+          barbershopId: appointment.barbershopId,
+          type: target === "CANCELLED_BY_SHOP" ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_CONFIRMED",
+          payload: { appointmentId: appointment.id },
+        },
+      });
+    }
   });
 }
 
@@ -729,6 +741,16 @@ export async function createManualAppointment(
         status: "GRANTED",
         textVersion: process.env.TERMS_VERSION ?? "dev-0",
         source: "staff_manual",
+      },
+    });
+
+    // O encaixe no balcão ocupa a agenda como qualquer outro: sem isto, o
+    // calendário do profissional mostraria o horário livre.
+    await tx.outboxEvent.create({
+      data: {
+        barbershopId: input.barbershopId,
+        type: "APPOINTMENT_CONFIRMED",
+        payload: { appointmentId: appointment.id },
       },
     });
 

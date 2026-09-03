@@ -39,6 +39,13 @@ jobs:
       REDIS_URL: redis://localhost:6379
       AUTH_SECRET: ci-only-not-a-real-secret
       TOKEN_HMAC_SECRET: ci-only-not-a-real-secret
+      # Chave de teste, gerada aqui e descartada com o runner: nunca é a de
+      # produção, que vive só no cofre da VPS.
+      ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      # O e2e do consumidor lê o código de acesso do log; o build servido pelo
+      # `next start` é de produção, então o provedor de log precisa ser pedido
+      # explicitamente (ver apps/web/lib/messaging.ts).
+      SMS_PROVIDER: log
 
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +77,12 @@ jobs:
         run: pnpm --filter @barber/db exec node tests/guarantees.test.mjs
 
       - name: Testes de integração (agendamento, tenancy e autorização)
-        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs
+        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs tests/integracoes.test.mjs
+
+      # Cadeia inteira da integração externa: reserva, outbox, worker e um
+      # provedor que falha sob comando. É o que prova o Marco 5.
+      - name: Testes de integração externa (calendário, falha e reconciliação)
+        run: pnpm --filter @barber/worker exec node --experimental-strip-types --test tests/calendar.test.mjs
 
       - name: Build
         run: pnpm --filter @barber/web build
@@ -92,6 +104,7 @@ jobs:
           BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/agenda.e2e.mjs
           # O e2e do consumidor lê o código de acesso do log do servidor
           BASE_URL=http://127.0.0.1:3000 SERVER_LOG=/tmp/next.log pnpm --filter @barber/web exec node --test tests/consumidor.e2e.mjs
+          BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/integracoes.e2e.mjs
         env:
           APP_BASE_URL: http://127.0.0.1:3000
 

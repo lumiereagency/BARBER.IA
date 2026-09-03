@@ -1,7 +1,7 @@
 # BARBER SaaS — Estado do projeto
 
-Fechamento da etapa que cobriu as Partes 1, 2 e 3 do documento de
-especificação, e os Marcos 0 a 4 do roteiro da Parte 3 §8.
+Cobre as Partes 1, 2 e 3 do documento de especificação, e os Marcos 0 a 5 do
+roteiro da Parte 3 §8.
 
 Atualizado em 2026-09-03. Branch: `claude/barber-saas-product-scope-vcp4q2`.
 
@@ -16,6 +16,7 @@ Atualizado em 2026-09-03. Branch: `claude/barber-saas-product-scope-vcp4q2`.
 | 2 — Agendamento | Disponibilidade, holds, confirmação transacional, wizard público, link seguro, cancelamento, remarcação, trilha de eventos | Concluído |
 | 3 — Painel diário | Agenda dia/semana, encaixe no balcão, concluído/falta, bloqueio de período, métricas ao vivo, WhatsApp manual | Concluído |
 | 4 — Consumidor e CRM | Conta por OTP, vinculação segura, área do cliente, CRM automático, consentimentos, encerramento de conta | Concluído, com a ressalva do provedor de SMS (§3) |
+| 5 — Integrações resilientes | Google Agenda unidirecional, credenciais cifradas, reconciliação, painel com status e erro acionável | Concluído, com a ressalva das credenciais OAuth (§3) |
 
 **Critério de sucesso do produto (Parte 1 §22)**: uma barbearia consegue
 configurar a operação, publicar seu link, receber reservas sem conflito,
@@ -30,30 +31,43 @@ Todos executados contra Postgres real; nenhum mock nas garantias centrais.
 
 | Suíte | Testes | O que protege |
 |---|---:|---|
-| Domínio (`@barber/domain`) | 67 | Fuso e horário de verão, disponibilidade, buffers, RBAC, CRM, telefone, slug |
+| Domínio (`@barber/domain`) | 76 | Fuso e horário de verão, disponibilidade, buffers, RBAC, CRM, telefone, slug, cifra de credencial |
 | Garantias do banco (`@barber/db`) | 17 | Conflito sob concorrência real, ocupação por status, advisory lock, buffers na constraint, dedupe de cliente, isolamento |
-| Integração (`@barber/web`) | 88 | Agendamento, tenancy e autorização, operação do dia, conta do consumidor e CRM |
-| Navegador (Playwright, viewport de celular) | 45 | Onboarding, agendamento público, agenda operacional, conta do consumidor |
+| Integração (`@barber/web`) | 96 | Agendamento, tenancy e autorização, operação do dia, conta do consumidor e CRM, estado legível da integração |
+| Integração externa (`@barber/worker`) | 20 | Reserva intacta sob falha do Google, idempotência, limite de retentativa, revogação, reconciliação, reconexão sem duplicar |
+| Navegador (Playwright, viewport de celular) | 50 | Onboarding, agendamento público, agenda operacional, conta do consumidor, painel de integrações |
 
 Comandos: `pnpm test` (unitários e integração), `pnpm --filter @barber/db
-test:guarantees`, `pnpm --filter @barber/web test:ui`.
+test:guarantees`, `pnpm --filter @barber/worker test`, `pnpm --filter
+@barber/web test:ui`.
+
+Os testes de navegador precisam ser executados **um arquivo por vez**: eles
+compartilham o mesmo servidor e o mesmo banco, e `node --test` com vários
+arquivos os roda em paralelo, fazendo um derrubar o outro. O CI já faz assim.
 
 ## 3. Pendências que dependem de decisão sua
 
-Nenhuma bloqueia o desenvolvimento dos próximos marcos. As três primeiras
+Nenhuma bloqueia o desenvolvimento dos próximos marcos. As duas primeiras
 bloqueiam operação com cliente real.
 
 1. **Textos legais versionados** — o mais urgente. O consentimento grava a
    versão do texto aceito, e hoje roda com `dev-0`. Nenhuma barbearia real pode
    receber cliente antes do texto definitivo.
-2. **Provedor de SMS** — o envio do código de acesso está atrás de um adapter;
-   o provedor de desenvolvimento apenas registra no log e **se recusa a rodar em
-   produção**. Bloqueia o Marco 4 em produção, não o desenvolvimento.
-3. **Nome e domínio** — bloqueia TLS, o domínio remetente e o formato final do
+2. **Provedor de SMS** — o envio do código de acesso está atrás de um adapter.
+   Sem `SMS_PROVIDER` configurado, a aplicação **se recusa a rodar esse caminho
+   em produção** em vez de fingir que enviou. Bloqueia o Marco 4 em produção,
+   não o desenvolvimento.
+3. **Credenciais OAuth do Google** — o adapter, a cifra, a sincronização e o
+   painel estão prontos e testados, mas conectar de verdade exige um projeto no
+   Google Cloud com `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` e
+   `GOOGLE_OAUTH_REDIRECT_URI`. Sem elas, o painel diz honestamente que a
+   conexão não está liberada em vez de oferecer um botão quebrado. Não bloqueia
+   nada além da própria integração.
+4. **Nome e domínio** — bloqueia TLS, o domínio remetente e o formato final do
    link público.
-4. **Provedor de cobrança** — bloqueia o Marco 7. Se Pix ou boleto entrarem, o
+5. **Provedor de cobrança** — bloqueia o Marco 7. Se Pix ou boleto entrarem, o
    provedor precisa ser nacional; Stripe cobre bem apenas cartão no Brasil.
-5. **Limites numéricos dos planos** — bloqueia os entitlements do Marco 6.
+6. **Limites numéricos dos planos** — bloqueia os entitlements do Marco 6.
 
 ## 4. Riscos registrados
 
@@ -87,16 +101,41 @@ Registradas aqui porque mudaram o que já estava escrito:
 - **Vinculação de histórico não herda relação com mais de 12 meses.** Número de
   celular é reciclado no Brasil; sem o corte, quem recebesse um número
   reaproveitado herdaria o histórico do dono anterior.
+- **Um erro de console do roteador deixou de reprovar os testes.** Quando uma
+  navegação cancela um prefetch em voo, o Next registra "Failed to fetch RSC
+  payload" e refaz a navegação normalmente. A asserção de "nenhum erro no
+  console" reprovava por isso de forma intermitente; agora ela ignora
+  exatamente essa mensagem e continua valendo para todo o resto.
+- **`SMS_PROVIDER=log` virou opt-in explícito.** O provedor de log recusava
+  rodar sempre que `NODE_ENV=production`, e como CI e homologação servem o build
+  de produção, o fluxo de código de acesso não podia ser exercitado onde ele de
+  fato roda. Agora: sem `SMS_PROVIDER`, produção continua recusando (esquecer de
+  configurar não pode virar um sistema que parece enviar e não envia); com
+  `SMS_PROVIDER=log`, alguém pediu por isso, e a aplicação avisa alto a cada
+  inicialização se estiver em produção.
+- **Tirei "Clientes" do menu do painel.** O item apontava para uma tela que
+  nunca foi construída. Além do 404, o Next faz prefetch de todo `Link` visível:
+  a requisição pendente para a rota inexistente segurava a navegação em todas as
+  páginas do painel. Volta quando a tela de CRM da equipe existir (Marco 6).
 - **A constraint anti-conflito cobre `CONFIRMED`, `COMPLETED` e `NO_SHOW`.**
   Restringir a `CONFIRMED` permitiria gravar um atendimento retroativo por cima
   de outro já realizado.
+- **A sincronização com o calendário virou convergente.** A primeira versão
+  reproduzia o evento ("confirmou", "cancelou"); como o outbox entrega ao menos
+  uma vez e sem ordem garantida, uma confirmação reentregue depois de um
+  cancelamento recriaria o compromisso. Agora ela lê o estado atual do
+  agendamento e faz o calendário refletir — reprocessar em qualquer ordem chega
+  ao mesmo lugar.
+- **Desconectar não apaga os compromissos já enviados ao Google.** Eles são da
+  agenda do profissional; apagá-los sem ele pedir seria mexer no que é dele.
+  Guardar o `external_event_id` é também o que faz a reconexão atualizar o
+  mesmo evento em vez de criar um segundo.
 
 ## 6. Próximo passo
 
-Marco 5 — integrações resilientes: Google Calendar unidirecional com
-`external_event_id` idempotente, reconciliação, status de integração no painel.
-O outbox e o worker que ele exige já estão prontos e processando.
+Marco 6 — recursos Pro: Agenda Inteligente, lista de espera, relatórios
+avançados e entitlements por plano. Depende dos limites numéricos dos planos
+(§3, item 6) para os entitlements; o resto pode começar antes.
 
-Depois: Marco 6 (Pro — Agenda Inteligente, lista de espera, relatórios),
-Marco 7 (cobrança e Super Admin) e Marco 8 (Baileys, adiável sem impedir
-lançamento).
+Depois: Marco 7 (cobrança e Super Admin) e Marco 8 (Baileys, adiável sem
+impedir lançamento).

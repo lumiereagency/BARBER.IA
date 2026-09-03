@@ -8,3 +8,4 @@ export * from "./password.js";
 export * from "./slug.js";
 export * from "./whatsapp.js";
 export * from "./crm.js";
+export * from "./crypto.js";

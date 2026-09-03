@@ -19,6 +19,12 @@ const EMAIL = `agenda-${sufixo}@teste.com`;
 const SENHA = "senha-bem-longa-1";
 const NOME_BARBEARIA = `Barbearia Agenda ${sufixo}`;
 
+/// Ruído do roteador do Next, não defeito da aplicação: quando uma navegação
+/// cancela um prefetch em voo, o roteador registra a falha no console e refaz a
+/// navegação pelo caminho normal. Filtrar só esta mensagem mantém a asserção de
+/// "nenhum erro no console" valendo para tudo o mais.
+const RUIDO_DO_ROTEADOR = /Failed to fetch RSC payload/;
+
 let browser;
 let page;
 const problemas = [];
@@ -42,7 +48,7 @@ before(async () => {
   page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => problemas.push(String(error)));
   page.on("console", (m) => {
-    if (m.type() === "error") problemas.push(m.text());
+    if (m.type() === "error" && !RUIDO_DO_ROTEADOR.test(m.text())) problemas.push(m.text());
   });
   page.on("response", (r) => {
     if (r.status() >= 500) problemas.push(`${r.status()} ${r.url()}`);

@@ -965,10 +965,18 @@ model IntegrationConnection {
 
   provider IntegrationProvider
   status   IntegrationStatus   @default(DISCONNECTED)
-  /// Referência ao segredo no cofre — credencial nunca em texto puro aqui (§11)
+  /// Reservado para instalações que usem cofre externo em vez da cifra local
   credentialsRef String? @map("credentials_ref")
+  /// Tokens OAuth cifrados com AES-256-GCM; a chave vive na configuração, nunca
+  /// no banco (Parte 2 §11). Um dump do banco não entrega acesso ao calendário.
+  credentialsEncrypted String? @map("credentials_encrypted")
+  /// Quando o access token expira — o refresh é feito antes de usar
+  tokenExpiresAt DateTime? @map("token_expires_at") @db.Timestamptz(3)
+  /// Conta externa conectada, para a tela dizer qual é
+  externalAccount String?  @map("external_account")
   lastSyncAt     DateTime? @map("last_sync_at") @db.Timestamptz(3)
   lastErrorCode  String?   @map("last_error_code")
+  lastErrorAt    DateTime? @map("last_error_at") @db.Timestamptz(3)
   disconnectedAt DateTime? @map("disconnected_at") @db.Timestamptz(3)
   metadata       Json?
 
