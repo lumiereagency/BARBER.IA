@@ -1,0 +1,1046 @@
+// Schema do BARBER SaaS.
+//
+// Referências: docs/product-scope-part1.md (produto e decisões de negócio),
+// docs/tech-review-part2.md (confronto técnico e decisões #11-#15) e a
+// Parte 2 do documento de especificação (arquitetura, dados e segurança).
+//
+// Convenções:
+// - identificadores UUID gerados pelo banco (Parte 2 §5);
+// - instantes sempre em timestamptz/UTC; horários de jornada são hora local (§7);
+// - tabelas e colunas em snake_case, para que o SQL cru (constraints de exclusão,
+//   advisory locks, relatórios) não precise citar identificadores;
+// - valores monetários em unidade menor (centavos), sufixo `_minor`.
+//
+// Garantias que vivem em SQL e não em Prisma (ver migration.sql):
+// - EXCLUDE USING gist em appointments para status que ocupam agenda (§6);
+// - índice único parcial de telefone verificado em customers (§5.3);
+// - coordenação hold × agendamento por advisory lock (decisão #12).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Plataforma
+// ---------------------------------------------------------------------------
+
+/// Camada acima da barbearia. Decisão #8: o MVP opera uma unidade por tenant,
+/// mas o vínculo já existe nulo para que multiunidade não exija migrar todas
+/// as tabelas depois.
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  barbershops Barbershop[]
+
+  @@map("organizations")
+}
+
+model Plan {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique // "essential" | "pro"
+  name       String
+  priceMinor Int      @map("price_minor")
+  currency   String   @default("BRL")
+  /// Entitlements booleanos: { smartAgenda, waitlist, baileys, advancedReports, ... }
+  features   Json
+  /// Limites numéricos aplicados server-side via usage_counters (§19 #7)
+  limits     Json     @default("{}")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// Namespace de autorização separado do da equipe (Parte 2 §8).
+model PlatformAdminUser {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_admin_users")
+}
+
+model Coupon {
+  id             String    @id @default(uuid()) @db.Uuid
+  code           String    @unique
+  discountType   CouponDiscountType @map("discount_type")
+  discountValue  Int       @map("discount_value")
+  maxRedemptions Int?      @map("max_redemptions")
+  redeemedCount  Int       @default(0) @map("redeemed_count")
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(3)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("coupons")
+}
+
+enum CouponDiscountType {
+  PERCENT
+  FIXED
+
+  @@map("coupon_discount_type")
+}
+
+// ---------------------------------------------------------------------------
+// Barbearia (tenant) e assinatura
+// ---------------------------------------------------------------------------
+
+model Barbershop {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  name     String
+  slug     String  @unique
+  timezone String  @default("America/Sao_Paulo") // IANA, nunca offset fixo (§7)
+  phone    String?
+  /// { street, number, complement, district, city, state, postalCode }
+  address  Json?
+  /// Branding e preferências; validado por schema na camada de aplicação
+  settings Json    @default("{}")
+
+  status BarbershopStatus @default(ACTIVE)
+
+  // Políticas de agendamento (§5.1)
+  bookingWindowDays      Int @default(60) @map("booking_window_days")
+  minimumNoticeMinutes   Int @default(0) @map("minimum_notice_minutes")
+  /// Antecedência mínima para o cliente cancelar/remarcar (decisão #5 da Parte 1)
+  cancellationNoticeMinutes Int @default(0) @map("cancellation_notice_minutes")
+  /// Duração da retenção de slot (decisão #6: 5 min, configurável)
+  holdDurationMinutes    Int @default(5) @map("hold_duration_minutes")
+  /// Texto livre da política exibida ao cliente
+  cancellationPolicy     String? @map("cancellation_policy")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships         BarbershopMembership[]
+  professionals       Professional[]
+  services            Service[]
+  professionalServices ProfessionalService[]
+  workingHours        WorkingHours[]
+  scheduleExceptions  ScheduleException[]
+  scheduleBlocks      ScheduleBlock[]
+  barbershopCustomers BarbershopCustomer[]
+  consents            Consent[]
+  appointments        Appointment[]
+  appointmentHolds    AppointmentHold[]
+  appointmentEvents   AppointmentEvent[]
+  waitlistEntries     WaitlistEntry[]
+  promotions          Promotion[]
+  promotionRedemptions PromotionRedemption[]
+  smartOpportunities  SmartOpportunity[]
+  customerReturnScores CustomerReturnScore[]
+  integrationConnections IntegrationConnection[]
+  calendarSyncs       AppointmentCalendarSync[]
+  subscription        Subscription?
+  usageCounters       UsageCounter[]
+  auditLogs           AuditLog[]
+
+  @@index([organizationId])
+  @@map("barbershops")
+}
+
+enum BarbershopStatus {
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+
+  @@map("barbershop_status")
+}
+
+model Subscription {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @unique @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  planId       String     @map("plan_id") @db.Uuid
+  plan         Plan       @relation(fields: [planId], references: [id])
+
+  status             SubscriptionStatus @default(TRIALING)
+  /// Provedor de cobrança — adapter plugável (§19 #3)
+  provider           String?
+  externalCustomerId String?            @map("external_customer_id")
+  externalSubscriptionId String?        @map("external_subscription_id")
+  currentPeriodStart DateTime?          @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd   DateTime?          @map("current_period_end") @db.Timestamptz(3)
+  cancelledAt        DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+
+  @@map("subscription_status")
+}
+
+/// Uso medido por período para aplicar os limites do plano server-side (§5.6).
+model UsageCounter {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  metric       String // ex.: "appointments", "professionals", "reminders_sent"
+  periodStart  DateTime   @map("period_start") @db.Timestamptz(3)
+  periodEnd    DateTime   @map("period_end") @db.Timestamptz(3)
+  value        Int        @default(0)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([barbershopId, metric, periodStart])
+  @@map("usage_counters")
+}
+
+// ---------------------------------------------------------------------------
+// Identidade da equipe: usuário global + vínculo por barbearia (Parte 2 §5.1).
+// Substitui a decisão #3 da Parte 1 — um login pode atender várias barbearias.
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique
+  /// Nulo enquanto o acesso for só por magic link
+  passwordHash    String?   @map("password_hash")
+  name            String
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(3)
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(3)
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships BarbershopMembership[]
+
+  @@map("users")
+}
+
+model BarbershopMembership {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  userId       String     @map("user_id") @db.Uuid
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role   MembershipRole
+  status MembershipStatus @default(ACTIVE)
+  /// Ajustes finos sobre o papel; o papel continua sendo a fonte primária
+  permissions Json?
+
+  /// Vínculo opcional com a ficha de profissional — decisão: barbeiro pode
+  /// existir na agenda sem ter login no sistema (Parte 2 §5.1).
+  professionalId String?       @unique @map("professional_id") @db.Uuid
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([barbershopId, userId])
+  @@index([userId])
+  @@map("barbershop_memberships")
+}
+
+/// Decisão #11: OWNER controla assinatura, cobrança e ciclo de vida da
+/// barbearia; ADMIN faz todo o resto; RECEPTIONIST opera agenda e clientes;
+/// PROFESSIONAL vê e gerencia a própria agenda.
+enum MembershipRole {
+  OWNER
+  ADMIN
+  RECEPTIONIST
+  PROFESSIONAL
+
+  @@map("membership_role")
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+
+  @@map("membership_status")
+}
+
+model Professional {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  displayName String  @map("display_name")
+  bio         String?
+  phone       String?
+  avatarUrl   String? @map("avatar_url")
+  active      Boolean @default(true)
+  /// Desempate determinístico de "qualquer profissional" (Parte 1 §12)
+  bookingPriority Int @default(0) @map("booking_priority")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  membership         BarbershopMembership?
+  services           ProfessionalService[]
+  workingHours       WorkingHours[]
+  scheduleExceptions ScheduleException[]
+  scheduleBlocks     ScheduleBlock[]
+  appointments       Appointment[]
+  appointmentHolds   AppointmentHold[]
+  waitlistEntries    WaitlistEntry[]
+  smartOpportunities SmartOpportunity[]
+  integrationConnections IntegrationConnection[]
+  preferredByCustomers   BarbershopCustomer[] @relation("PreferredProfessional")
+
+  @@index([barbershopId, active])
+  @@map("professionals")
+}
+
+// ---------------------------------------------------------------------------
+// Catálogo e disponibilidade
+// ---------------------------------------------------------------------------
+
+model Service {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  name        String // combos são cadastrados como serviço próprio (decisão #4 da Parte 1)
+  description String?
+  priceMinor  Int    @map("price_minor")
+  durationMinutes     Int @map("duration_minutes")
+  bufferBeforeMinutes Int @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes  Int @default(0) @map("buffer_after_minutes")
+  active      Boolean @default(true)
+  publicOrder Int     @default(0) @map("public_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  professionals ProfessionalService[]
+  appointments  Appointment[]
+  appointmentHolds AppointmentHold[]
+  waitlistEntries  WaitlistEntry[]
+  preferredByCustomers BarbershopCustomer[] @relation("PreferredService")
+
+  @@index([barbershopId, active, publicOrder])
+  @@map("services")
+}
+
+/// Elegibilidade profissional × serviço, com preço e duração próprios quando o
+/// profissional cobra ou demora diferente (§5.2).
+model ProfessionalService {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  serviceId    String     @map("service_id") @db.Uuid
+  service      Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  customPriceMinor      Int?    @map("custom_price_minor")
+  customDurationMinutes Int?    @map("custom_duration_minutes")
+  active                Boolean @default(true)
+
+  @@unique([professionalId, serviceId])
+  @@index([barbershopId, serviceId, active])
+  @@map("professional_services")
+}
+
+/// Jornada semanal em hora local da barbearia, com vigência (§5.2 e §7).
+model WorkingHours {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  weekday        Int    // 0=domingo ... 6=sábado
+  startLocalTime String @map("start_local_time") // "09:00"
+  endLocalTime   String @map("end_local_time") // "18:00"
+
+  effectiveFrom DateTime? @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+
+  @@index([barbershopId, professionalId, weekday])
+  @@map("working_hours")
+}
+
+/// Exceções de calendário: folga, férias ou janela extra em uma data.
+model ScheduleException {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  type      ScheduleExceptionType
+  /// Nulos = dia inteiro
+  startLocalTime String? @map("start_local_time")
+  endLocalTime   String? @map("end_local_time")
+  reason         String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, professionalId, startDate])
+  @@map("schedule_exceptions")
+}
+
+enum ScheduleExceptionType {
+  AVAILABLE
+  UNAVAILABLE
+  VACATION
+
+  @@map("schedule_exception_type")
+}
+
+/// Bloqueio pontual em instantes absolutos (ex.: "bloquear das 14h às 15h hoje").
+model ScheduleBlock {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+  reason   String?
+  createdByUserId String? @map("created_by_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, professionalId, startsAt])
+  @@map("schedule_blocks")
+}
+
+// ---------------------------------------------------------------------------
+// Consumidor: identidade global × relação por barbearia (Parte 1 §10.2)
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id String @id @default(uuid()) @db.Uuid
+  /// E.164. Índice único parcial só quando verificado — ver migration.sql (§5.3)
+  normalizedPhone String? @map("normalized_phone")
+  displayName     String  @map("display_name")
+  email           String?
+  phoneVerifiedAt DateTime? @map("phone_verified_at") @db.Timestamptz(3)
+
+  accountStatus       CustomerAccountStatus @default(ACTIVE) @map("account_status")
+  deletionRequestedAt DateTime?             @map("deletion_requested_at") @db.Timestamptz(3)
+  /// Decisão #7 da Parte 1: encerrar conta anonimiza identificação e preserva
+  /// o histórico operacional agregado da barbearia.
+  anonymizedAt        DateTime?             @map("anonymized_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  barbershopLinks BarbershopCustomer[]
+  consents        Consent[]
+
+  @@index([normalizedPhone])
+  @@map("customers")
+}
+
+enum CustomerAccountStatus {
+  ACTIVE
+  DELETION_REQUESTED
+  ANONYMIZED
+
+  @@map("customer_account_status")
+}
+
+model BarbershopCustomer {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  /// Nulo até o consumidor verificar o telefone e vincular o histórico
+  customerId   String?    @map("customer_id") @db.Uuid
+  customer     Customer?  @relation(fields: [customerId], references: [id])
+
+  /// E.164. A unicidade por (barbearia, telefone) é o que impede a relação
+  /// duplicar a cada agendamento anônimo — ver docs/tech-review-part2.md §2.1.
+  normalizedPhone String @map("normalized_phone")
+  currentName     String @map("current_name")
+
+  // CRM materializado por job (§5.3). A tela "Hoje" lê agendamentos ao vivo;
+  // estes campos servem a perfil de cliente e relatórios de período.
+  firstVisitAt         DateTime? @map("first_visit_at") @db.Timestamptz(3)
+  lastVisitAt          DateTime? @map("last_visit_at") @db.Timestamptz(3)
+  completedVisitsCount Int       @default(0) @map("completed_visits_count")
+  cancelledCount       Int       @default(0) @map("cancelled_count")
+  noShowCount          Int       @default(0) @map("no_show_count")
+  totalSpentMinor      Int       @default(0) @map("total_spent_minor")
+  averageTicketMinor   Int?      @map("average_ticket_minor")
+  averageReturnDays    Float?    @map("average_return_days")
+  preferredProfessionalId String? @map("preferred_professional_id") @db.Uuid
+  preferredProfessional   Professional? @relation("PreferredProfessional", fields: [preferredProfessionalId], references: [id])
+  preferredServiceId      String? @map("preferred_service_id") @db.Uuid
+  preferredService        Service? @relation("PreferredService", fields: [preferredServiceId], references: [id])
+  lastContactAt        DateTime? @map("last_contact_at") @db.Timestamptz(3)
+  /// Vocabulário controlado na aplicação
+  tags                 String[]  @default([])
+  /// Acesso restrito por papel; nunca exposto em endpoint público
+  notes                String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  appointments        Appointment[]
+  waitlistEntries     WaitlistEntry[]
+  consents            Consent[]
+  promotionRedemptions PromotionRedemption[]
+  returnScore         CustomerReturnScore?
+
+  @@unique([barbershopId, normalizedPhone])
+  @@index([barbershopId, customerId])
+  @@index([barbershopId, lastVisitAt])
+  @@map("barbershop_customers")
+}
+
+/// Consentimento por canal e finalidade, versionado e revogável (§5.3, §13).
+/// Marketing nunca é inferido de agendamento.
+model Consent {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String?    @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop? @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  customerId   String?    @map("customer_id") @db.Uuid
+  customer     Customer?  @relation(fields: [customerId], references: [id])
+  barbershopCustomerId String? @map("barbershop_customer_id") @db.Uuid
+  barbershopCustomer   BarbershopCustomer? @relation(fields: [barbershopCustomerId], references: [id], onDelete: Cascade)
+
+  channel ConsentChannel
+  purpose ConsentPurpose
+  status  ConsentStatus  @default(GRANTED)
+  /// Versão do texto aceito — depende dos textos legais (§19 #10)
+  textVersion String   @map("text_version")
+  capturedAt  DateTime @default(now()) @map("captured_at") @db.Timestamptz(3)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// Onde o aceite ocorreu: "public_booking", "customer_area", "staff_manual"
+  source      String
+  /// Evidência mínima; sem dado pessoal além do necessário
+  evidence    Json?
+
+  @@index([barbershopCustomerId, channel, purpose])
+  @@index([customerId, channel, purpose])
+  @@map("consents")
+}
+
+enum ConsentChannel {
+  WHATSAPP
+  SMS
+  EMAIL
+
+  @@map("consent_channel")
+}
+
+enum ConsentPurpose {
+  OPERATIONAL
+  MARKETING
+
+  @@map("consent_purpose")
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+
+  @@map("consent_status")
+}
+
+// ---------------------------------------------------------------------------
+// Agendamento
+// ---------------------------------------------------------------------------
+
+model Appointment {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  barbershopCustomerId String @map("barbershop_customer_id") @db.Uuid
+  barbershopCustomer   BarbershopCustomer @relation(fields: [barbershopCustomerId], references: [id])
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  serviceId    String     @map("service_id") @db.Uuid
+  service      Service    @relation(fields: [serviceId], references: [id])
+
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+  status   AppointmentStatus @default(CONFIRMED)
+
+  // Snapshots: o histórico não pode mudar quando o catálogo muda
+  // (ver docs/tech-review-part2.md §2.3).
+  priceSnapshotMinor       Int    @map("price_snapshot_minor")
+  serviceNameSnapshot      String @map("service_name_snapshot")
+  professionalNameSnapshot String @map("professional_name_snapshot")
+  customerNameSnapshot     String @map("customer_name_snapshot")
+  /// Decisão #13: em claro e indexável; proteção é por papel e redação em log
+  customerPhoneSnapshot    String @map("customer_phone_snapshot")
+
+  source AppointmentSource @default(ONLINE)
+  /// HMAC-SHA256 do token entregue no link /a/{token} — o token cru nunca
+  /// é persistido (docs/tech-review-part2.md §2.2)
+  managementTokenHash String @unique @map("management_token_hash")
+  /// Decisão #14: leitura expira; escrita só enquanto CONFIRMED
+  managementTokenExpiresAt DateTime? @map("management_token_expires_at") @db.Timestamptz(3)
+
+  /// Remarcação encadeia em vez de apagar (Parte 1 §11)
+  previousAppointmentId String?      @unique @map("previous_appointment_id") @db.Uuid
+  previousAppointment   Appointment? @relation("Reschedule", fields: [previousAppointmentId], references: [id])
+  nextAppointment       Appointment? @relation("Reschedule")
+
+  promotionId String?    @map("promotion_id") @db.Uuid
+  promotion   Promotion? @relation(fields: [promotionId], references: [id])
+
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(3)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String?   @map("cancellation_reason")
+
+  createdByType ActorType @default(CUSTOMER) @map("created_by_type")
+  createdById   String?   @map("created_by_id")
+  /// Concorrência otimista para edição simultânea no painel (§5.4)
+  version       Int       @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  events               AppointmentEvent[]
+  calendarSyncs        AppointmentCalendarSync[]
+  promotionRedemptions PromotionRedemption[]
+  waitlistFulfillment  WaitlistEntry?
+  smartOpportunity     SmartOpportunity?
+
+  // A garantia anti-conflito é a EXCLUDE USING gist definida em migration.sql,
+  // cobrindo os status que ocupam agenda (Parte 2 §6).
+  @@index([barbershopId, professionalId, startsAt])
+  @@index([barbershopId, startsAt])
+  @@index([barbershopCustomerId, startsAt])
+  @@map("appointments")
+}
+
+/// Estados da Parte 1 §11, mais RESCHEDULED (decisão #15): sem ele, toda
+/// remarcação seria contada como cancelamento nos relatórios.
+enum AppointmentStatus {
+  CONFIRMED
+  CANCELLED_BY_CUSTOMER
+  CANCELLED_BY_SHOP
+  COMPLETED
+  NO_SHOW
+  RESCHEDULED
+
+  @@map("appointment_status")
+}
+
+enum AppointmentSource {
+  ONLINE
+  MANUAL
+  WAITLIST
+  SMART_OPPORTUNITY
+
+  @@map("appointment_source")
+}
+
+/// Retenção temporária do slot durante o fluxo público (Parte 1 §8).
+/// Tabela separada conforme Parte 2 §5.4; a coordenação com appointments é
+/// feita por advisory lock por profissional (decisão #12), já que constraint
+/// de exclusão não cruza tabelas.
+model AppointmentHold {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  serviceId    String     @map("service_id") @db.Uuid
+  service      Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  startsAt  DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime @map("ends_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  /// Hash do token opaco de sessão do fluxo público; nunca o token cru
+  sessionTokenHash String @unique @map("session_token_hash")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, professionalId, startsAt])
+  @@index([expiresAt])
+  @@map("appointment_holds")
+}
+
+/// Trilha imutável (§5.4). Nunca apagar reserva: mudar status e registrar evento.
+model AppointmentEvent {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  appointmentId String    @map("appointment_id") @db.Uuid
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  type      String // CREATED | CONFIRMED | RESCHEDULED | CANCELLED | COMPLETED | NO_SHOW | ...
+  actorType ActorType @map("actor_type")
+  actorId   String?   @map("actor_id")
+  metadata  Json?
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([appointmentId, createdAt])
+  @@map("appointment_events")
+}
+
+enum ActorType {
+  CUSTOMER
+  STAFF
+  SYSTEM
+  PLATFORM_ADMIN
+
+  @@map("actor_type")
+}
+
+// ---------------------------------------------------------------------------
+// Lista de espera, promoções e Agenda Inteligente
+// ---------------------------------------------------------------------------
+
+model WaitlistEntry {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  barbershopCustomerId String @map("barbershop_customer_id") @db.Uuid
+  barbershopCustomer   BarbershopCustomer @relation(fields: [barbershopCustomerId], references: [id], onDelete: Cascade)
+
+  serviceId      String?  @map("service_id") @db.Uuid
+  service        Service? @relation(fields: [serviceId], references: [id])
+  professionalId String?  @map("professional_id") @db.Uuid
+  professional   Professional? @relation(fields: [professionalId], references: [id])
+
+  dateFrom       DateTime? @map("date_from") @db.Date
+  dateTo         DateTime? @map("date_to") @db.Date
+  timeRangeStart String?   @map("time_range_start") // hora local "09:00"
+  timeRangeEnd   String?   @map("time_range_end")
+
+  status    WaitlistStatus @default(WAITING)
+  expiresAt DateTime?      @map("expires_at") @db.Timestamptz(3)
+  /// Decisão #10 da Parte 1: ordena pela mesma pontuação explicável da Agenda
+  /// Inteligente, não por ordem de chegada
+  rankScore   Float? @map("rank_score")
+  rankReasons Json?  @map("rank_reasons")
+
+  fulfilledAppointmentId String?      @unique @map("fulfilled_appointment_id") @db.Uuid
+  fulfilledAppointment   Appointment? @relation(fields: [fulfilledAppointmentId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, status])
+  @@map("waitlist_entries")
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  FULFILLED
+  EXPIRED
+  CANCELLED
+
+  @@map("waitlist_status")
+}
+
+model Promotion {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String
+  startsAt    DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt      DateTime @map("ends_at") @db.Timestamptz(3)
+  /// { weekdays: [], serviceIds: [], professionalIds: [], audience: {...} }
+  eligibilityRules Json    @default("{}") @map("eligibility_rules")
+  rulesVersion     Int     @default(1) @map("rules_version")
+  usageLimit       Int?    @map("usage_limit")
+  status           PromotionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  appointments Appointment[]
+  redemptions  PromotionRedemption[]
+
+  @@index([barbershopId, status, startsAt])
+  @@map("promotions")
+}
+
+enum PromotionStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("promotion_status")
+}
+
+/// Medição de resultado da promoção (§5.5).
+model PromotionRedemption {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  promotionId  String     @map("promotion_id") @db.Uuid
+  promotion    Promotion  @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  barbershopCustomerId String @map("barbershop_customer_id") @db.Uuid
+  barbershopCustomer   BarbershopCustomer @relation(fields: [barbershopCustomerId], references: [id], onDelete: Cascade)
+  appointmentId String      @map("appointment_id") @db.Uuid
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  redeemedAt DateTime @default(now()) @map("redeemed_at") @db.Timestamptz(3)
+
+  @@unique([promotionId, appointmentId])
+  @@index([barbershopId, promotionId])
+  @@map("promotion_redemptions")
+}
+
+/// Vaga detectada pela Agenda Inteligente (Parte 1 §13), com o token do link
+/// público /vaga/{token} — hasheado como os demais tokens.
+model SmartOpportunity {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  professionalId String   @map("professional_id") @db.Uuid
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+  compatibleServiceIds String[] @map("compatible_service_ids") @db.Uuid
+  /// Valor de UMA vaga preenchida, não a soma dos clientes candidatos
+  /// (ver docs/tech-review-part2.md §3.5)
+  estimatedRevenueMinor Int @map("estimated_revenue_minor")
+  /// Versão da fórmula, para comparar resultados ao longo do tempo
+  calculationVersion Int @default(1) @map("calculation_version")
+
+  status    SmartOpportunityStatus @default(OPEN)
+  expiresAt DateTime               @map("expires_at") @db.Timestamptz(3)
+  /// Nulo enquanto a vaga não tiver link compartilhável gerado
+  shareTokenHash String? @unique @map("share_token_hash")
+
+  claimedAppointmentId String?      @unique @map("claimed_appointment_id") @db.Uuid
+  claimedAppointment   Appointment? @relation(fields: [claimedAppointmentId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, status, startsAt])
+  @@map("smart_opportunities")
+}
+
+enum SmartOpportunityStatus {
+  OPEN
+  FILLED
+  EXPIRED
+  DISMISSED
+
+  @@map("smart_opportunity_status")
+}
+
+/// Cache explicável do ranking de retorno — nunca fonte de verdade (§5.5).
+model CustomerReturnScore {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  barbershopCustomerId String @unique @map("barbershop_customer_id") @db.Uuid
+  barbershopCustomer   BarbershopCustomer @relation(fields: [barbershopCustomerId], references: [id], onDelete: Cascade)
+
+  score   Float
+  /// Motivos legíveis exibidos ao dono (Parte 1 §13.2)
+  reasons Json
+  calculationVersion Int @default(1) @map("calculation_version")
+  computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, score])
+  @@map("customer_return_scores")
+}
+
+// ---------------------------------------------------------------------------
+// Integrações, jobs e auditoria
+// ---------------------------------------------------------------------------
+
+model IntegrationConnection {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  /// Google Calendar conecta por profissional; WhatsApp é por barbearia
+  professionalId String?  @map("professional_id") @db.Uuid
+  professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+
+  provider IntegrationProvider
+  status   IntegrationStatus   @default(DISCONNECTED)
+  /// Referência ao segredo no cofre — credencial nunca em texto puro aqui (§11)
+  credentialsRef String? @map("credentials_ref")
+  lastSyncAt     DateTime? @map("last_sync_at") @db.Timestamptz(3)
+  lastErrorCode  String?   @map("last_error_code")
+  disconnectedAt DateTime? @map("disconnected_at") @db.Timestamptz(3)
+  metadata       Json?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  calendarSyncs AppointmentCalendarSync[]
+
+  @@unique([barbershopId, professionalId, provider])
+  @@map("integration_connections")
+}
+
+enum IntegrationProvider {
+  GOOGLE_CALENDAR
+  WHATSAPP_BAILEYS
+
+  @@map("integration_provider")
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  UNSTABLE
+  DISCONNECTED
+  ERROR
+
+  @@map("integration_status")
+}
+
+/// Projeção do agendamento no calendário externo. Sem external_event_id não há
+/// create/update/delete idempotente (docs/tech-review-part2.md §3.8).
+model AppointmentCalendarSync {
+  id           String     @id @default(uuid()) @db.Uuid
+  barbershopId String     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  appointmentId String     @map("appointment_id") @db.Uuid
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  connectionId  String     @map("connection_id") @db.Uuid
+  connection    IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  externalEventId String? @map("external_event_id")
+  status          CalendarSyncStatus @default(PENDING)
+  lastError       String? @map("last_error")
+  lastSyncedAt    DateTime? @map("last_synced_at") @db.Timestamptz(3)
+
+  @@unique([appointmentId, connectionId])
+  @@map("appointment_calendar_syncs")
+}
+
+enum CalendarSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  DELETED
+
+  @@map("calendar_sync_status")
+}
+
+/// Transactional outbox: o efeito colateral é gravado na MESMA transação da
+/// mudança de domínio, então nunca se perde se o worker cair (Parte 2 §10).
+model OutboxEvent {
+  id           String  @id @default(uuid()) @db.Uuid
+  barbershopId String? @map("barbershop_id") @db.Uuid
+  type         String // SYNC_CALENDAR | SEND_REMINDER | MATCH_WAITLIST | RECOMPUTE_CRM | ...
+  payload      Json
+  status       OutboxStatus @default(PENDING)
+  availableAt  DateTime     @default(now()) @map("available_at") @db.Timestamptz(3)
+  attempts     Int          @default(0)
+  lastError    String?      @map("last_error")
+  processedAt  DateTime?    @map("processed_at") @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  jobAttempts JobAttempt[]
+
+  @@index([status, availableAt])
+  @@map("outbox_events")
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+  DEAD_LETTER
+
+  @@map("outbox_status")
+}
+
+model JobAttempt {
+  id            String       @id @default(uuid()) @db.Uuid
+  outboxEventId String?      @map("outbox_event_id") @db.Uuid
+  outboxEvent   OutboxEvent? @relation(fields: [outboxEventId], references: [id], onDelete: Cascade)
+
+  /// Chave de idempotência do efeito (ex.: "calendar:appt-123:v2")
+  jobKey     String   @map("job_key")
+  attempt    Int
+  status     JobAttemptStatus
+  error      String?
+  startedAt  DateTime @default(now()) @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
+
+  @@index([jobKey])
+  @@map("job_attempts")
+}
+
+enum JobAttemptStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("job_attempt_status")
+}
+
+/// Idempotência de requisição (Parte 2 §9): repetir a chamada não pode criar
+/// segunda reserva, cancelamento ou mensagem.
+model IdempotencyKey {
+  id           String  @id @default(uuid()) @db.Uuid
+  barbershopId String? @map("barbershop_id") @db.Uuid
+  /// Namespace da operação: "public.appointment.create", "appointment.cancel", ...
+  scope        String
+  key          String
+  /// Hash do corpo, para detectar reuso da mesma chave com payload diferente
+  requestHash  String  @map("request_hash")
+  status       IdempotencyStatus @default(IN_PROGRESS)
+  responseSnapshot Json? @map("response_snapshot")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(3)
+
+  @@unique([scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+
+  @@map("idempotency_status")
+}
+
+/// Auditoria de qualquer ator (equipe, cliente, sistema, superadmin) —
+/// não só do superadmin (docs/tech-review-part2.md §3.10).
+model AuditLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  barbershopId String?     @map("barbershop_id") @db.Uuid
+  barbershop   Barbershop? @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  actorType ActorType @map("actor_type")
+  actorId   String?   @map("actor_id")
+  action    String // "appointment.cancel", "impersonation.view.start", ...
+  targetType String? @map("target_type")
+  targetId   String? @map("target_id")
+  /// Hash do IP quando necessário — nunca o IP cru (§5.6)
+  ipHash     String? @map("ip_hash")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([barbershopId, createdAt])
+  @@index([actorType, actorId])
+  @@map("audit_logs")
+}
