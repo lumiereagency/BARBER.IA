@@ -122,3 +122,20 @@ Apenas `CONFIRMED` ocupa agenda definitiva; apenas `COMPLETED` conta como receit
 **Fora do MVP** (conforme seção 21, confirmado): PDV completo, estoque, emissão fiscal, folha/comissões complexas, marketplace de barbearias, app nativo, chatbot de WhatsApp, IA generativa, campanhas automáticas em massa, pagamento do consumidor pelo serviço, múltiplas unidades por assinatura (salvo decisão posterior), sincronização bidirecional completa com Google Calendar.
 
 Não vou expandir o produto para ERP, marketplace ou bot de WhatsApp, e vou tratar os 15 pontos da seção 2 / 10 perguntas da seção 3 como bloqueios a esclarecer antes de iniciar a Parte 2 (implementação), a menos que o usuário prefira que eu assuma respostas padrão e avance mesmo assim.
+
+## 6. Decisões (respostas às perguntas de negócio da seção 3)
+
+Aprovado pelo usuário assumir respostas padrão e prosseguir. Decisões tomadas, priorizando os princípios da seção 3 do documento original (sem senha para consumidor, WhatsApp nunca crítico, dado não inventado):
+
+1. **Canal do OTP do cliente**: SMS via provedor plugável (adapter, mesmo padrão de substituição do Baileys), nunca WhatsApp — evita tornar o WhatsApp requisito de ação crítica. Magic link por e-mail continua como fallback, conforme já previsto na seção 10.
+2. **Login da equipe**: e-mail + senha tradicional (com possibilidade de 2FA futura). A restrição de "sem senha" da seção 3 vale apenas para o consumidor final.
+3. **Profissional em múltiplas barbearias**: não há conta global de equipe. Cada vínculo profissional↔barbearia é um cadastro de usuário separado (login/e-mail próprios), coerente com "toda entidade operacional pertence a uma barbearia".
+4. **Multi-serviço por reserva**: MVP permite apenas um serviço (ou combo) por reserva. Combos como "Corte + Barba" são cadastrados pelo dono como um `Service` próprio, com sua própria duração/preço — não há seleção múltipla ad-hoc no wizard.
+5. **Antecedência mínima para cancelar/remarcar**: campo configurável por barbearia (`min_notice_cancel_minutes`), com padrão 0 (sem restrição) no lançamento, para o dono poder endurecer depois sem redesenho.
+6. **Expiração do link `/a/{token}`**: o token permanece válido indefinidamente para consulta (histórico/status), mas ações de escrita (cancelar/remarcar) só são permitidas enquanto o agendamento está `CONFIRMED`. Revogação manual continua disponível a qualquer momento.
+7. **Retenção de dados ao encerrar conta (LGPD)**: dados de identificação (nome, telefone, e-mail) são anonimizados tanto no `Customer` global quanto em cada `BarbershopCustomer`; os registros operacionais agregados (datas, contagens, receita) são preservados anonimizados para a contabilidade/relatórios da barbearia — nunca hard-delete do histórico operacional.
+8. **Cobrança da assinatura SaaS**: gateway de cartão recorrente (padrão Stripe ou equivalente) no lançamento, com Pix/boleto como evolução posterior. Interface de cobrança plugável, para trocar de provedor sem reescrever o domínio.
+9. **Impersonação do Superadmin**: entra no MVP em versão restrita — somente leitura ("ver como"), com aviso visível de que é uma sessão de suporte e registro obrigatório em log de auditoria. Nenhuma ação de escrita é permitida durante impersonação nesta fase.
+10. **Prioridade da lista de espera (Pro)**: reaproveita o mesmo motor de pontuação explicável da Agenda Inteligente (não é FIFO puro), exibindo o motivo do ranking; a equipe pode contatar fora da ordem manualmente se preferir.
+
+Essas decisões são o baseline de negócio para a Parte 2 (arquitetura e modelo de dados). Qualquer uma pode ser revista a pedido do usuário.
