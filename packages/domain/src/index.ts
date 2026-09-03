@@ -4,3 +4,5 @@ export * from "./time.js";
 export * from "./availability.js";
 export * from "./tokens.js";
 export * from "./phone.js";
+export * from "./password.js";
+export * from "./slug.js";

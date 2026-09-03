@@ -231,8 +231,31 @@ model User {
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships BarbershopMembership[]
+  sessions    UserSession[]
 
   @@map("users")
+}
+
+/// Sessão da equipe. Token opaco guardado como HMAC, com expiração e
+/// revogação — a Parte 2 §14 exige política de sessão e revogação, e um
+/// cookie apenas assinado não permitiria derrubar acesso já emitido.
+model UserSession {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique @map("token_hash")
+  /// Barbearia ativa quando o usuário atende a mais de uma
+  activeBarbershopId String? @map("active_barbershop_id") @db.Uuid
+
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("user_sessions")
 }
 
 model BarbershopMembership {

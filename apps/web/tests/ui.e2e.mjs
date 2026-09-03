@@ -12,7 +12,11 @@ import { chromium } from "playwright";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const SLUG = process.env.DEMO_SLUG ?? "barbearia-do-ze";
-const CHROMIUM = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium";
+// Sem CHROMIUM_PATH, usa o navegador que o Playwright instalou
+// (`pnpm --filter @barber/web exec playwright install chromium`).
+const launchOptions = process.env.CHROMIUM_PATH
+  ? { executablePath: process.env.CHROMIUM_PATH }
+  : {};
 
 let browser;
 let page;
@@ -25,7 +29,7 @@ async function visivel(locator, timeout = 10000) {
 }
 
 before(async () => {
-  browser = await chromium.launch({ executablePath: CHROMIUM });
+  browser = await chromium.launch(launchOptions);
   page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
   page.on("pageerror", (error) => problemas.push(String(error)));

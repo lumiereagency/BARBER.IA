@@ -69,15 +69,18 @@ jobs:
       - name: Testes de garantia do banco
         run: pnpm --filter @barber/db exec node tests/guarantees.test.mjs
 
-      - name: Testes de integração do agendamento
-        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs
+      - name: Testes de integração (agendamento, tenancy e autorização)
+        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs
 
       - name: Build
         run: pnpm --filter @barber/web build
 
-      # Fluxo público ponta a ponta contra o servidor real: é o que prova que
-      # dá para agendar, disputar horário, cancelar e remarcar de verdade.
-      - name: Fluxo ponta a ponta (HTTP)
+      - name: Instalar navegador para os testes de interface
+        run: pnpm --filter @barber/web exec playwright install --with-deps chromium
+
+      # Fluxo ponta a ponta contra o servidor real: é o que prova que dá para
+      # configurar a barbearia, agendar, disputar horário e cancelar de verdade.
+      - name: Fluxo ponta a ponta
         run: |
           pnpm --filter @barber/web exec next start -p 3000 &
           for i in $(seq 1 30); do
@@ -85,6 +88,7 @@ jobs:
             sleep 2
           done
           BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/flow.e2e.mjs
+          BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/onboarding.e2e.mjs
         env:
           APP_BASE_URL: http://127.0.0.1:3000
 
