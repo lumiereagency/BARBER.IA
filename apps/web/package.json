@@ -6,24 +6,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm --filter @barber/domain --filter @barber/api-contracts build && dotenv -e ../../.env -- node --experimental-strip-types --test tests/booking.test.mjs",
+    "prebuild": "pnpm --filter @barber/domain --filter @barber/api-contracts build",
+    "test:e2e": "dotenv -e ../../.env -- node --test tests/flow.e2e.mjs",
+    "seed:demo": "dotenv -e ../../.env -- node --experimental-strip-types scripts/seed-demo.mjs",
+    "test:ui": "node --test tests/ui.e2e.mjs"
   },
   "dependencies": {
     "@barber/api-contracts": "workspace:*",
     "@barber/config": "workspace:*",
     "@barber/db": "workspace:*",
     "@barber/domain": "workspace:*",
+    "@prisma/client": "^5.22.0",
     "next": "14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "zod": "^3.23.8",
-    "@prisma/client": "^5.22.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
+    "dotenv-cli": "^7.4.2",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2"

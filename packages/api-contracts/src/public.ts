@@ -3,12 +3,12 @@
 
 import { z } from "zod";
 import {
-  e164Phone,
   idempotencyKey,
   instant,
   localDate,
   localTime,
   opaqueToken,
+  phoneInput,
   uuid,
 } from "./common.js";
 
@@ -130,7 +130,7 @@ export const createHoldResponse = z.object({
 export const createAppointmentRequest = z.object({
   holdToken: opaqueToken,
   customerName: z.string().trim().min(2).max(120),
-  customerPhone: e164Phone,
+  customerPhone: phoneInput,
   /// Aceite dos termos essenciais — obrigatório, base operacional
   acceptedTermsVersion: z.string(),
   /// Consentimento promocional: separado, opcional e nunca inferido do
@@ -222,7 +222,7 @@ export const rescheduleAppointmentResponse = z.object({
 
 export const createWaitlistRequest = z.object({
   customerName: z.string().trim().min(2).max(120),
-  customerPhone: e164Phone,
+  customerPhone: phoneInput,
   serviceId: uuid.optional(),
   professionalId: uuid.optional(),
   dateFrom: localDate.optional(),
@@ -260,7 +260,7 @@ export const vacancyResponse = z.object({
 export const claimVacancyRequest = z.object({
   serviceId: uuid,
   customerName: z.string().trim().min(2).max(120),
-  customerPhone: e164Phone,
+  customerPhone: phoneInput,
   acceptedTermsVersion: z.string(),
 });
 

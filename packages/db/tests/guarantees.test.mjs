@@ -43,17 +43,24 @@ function connect() {
   return client.connect().then(() => client);
 }
 
-function appointmentInsert(id, startsAt, endsAt, status = "CONFIRMED") {
+/// O footprint (occupies_from/to) é o intervalo protegido pela constraint; por
+/// padrão coincide com o serviço, mas os testes de buffer passam valores
+/// maiores para exercitar a proteção do preparo e da limpeza.
+function appointmentInsert(id, startsAt, endsAt, status = "CONFIRMED", footprint = {}) {
   return {
     text: `INSERT INTO appointments (
              id, barbershop_id, barbershop_customer_id, professional_id, service_id,
-             starts_at, ends_at, status,
+             starts_at, ends_at, occupies_from, occupies_to, status,
              price_snapshot_minor, service_name_snapshot, professional_name_snapshot,
              customer_name_snapshot, customer_phone_snapshot,
              management_token_hash, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::appointment_status,
-                     8000,'Corte + Barba','Matheus','Joao','+5511999990000',$9, now())`,
-    values: [id, SHOP_A, CUST_A, PRO_A, SVC_A, startsAt, endsAt, status, `hash_${id}`],
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::appointment_status,
+                     8000,'Corte + Barba','Matheus','Joao','+5511999990000',$11, now())`,
+    values: [
+      id, SHOP_A, CUST_A, PRO_A, SVC_A, startsAt, endsAt,
+      footprint.from ?? startsAt, footprint.to ?? endsAt,
+      status, `hash_${id}`,
+    ],
   };
 }
 
@@ -168,12 +175,12 @@ async function testHoldCoordination() {
       SELECT 1 FROM appointments
        WHERE professional_id = $1
          AND status IN ('CONFIRMED','COMPLETED','NO_SHOW')
-         AND tstzrange(starts_at, ends_at) && tstzrange($2::timestamptz, $3::timestamptz)
+         AND tstzrange(occupies_from, occupies_to) && tstzrange($2::timestamptz, $3::timestamptz)
     ) AND NOT EXISTS (
       SELECT 1 FROM appointment_holds
        WHERE professional_id = $1
          AND expires_at > now()
-         AND tstzrange(starts_at, ends_at) && tstzrange($2::timestamptz, $3::timestamptz)
+         AND tstzrange(occupies_from, occupies_to) && tstzrange($2::timestamptz, $3::timestamptz)
     ) AS free`;
 
   // Transação A cria um hold sob o lock.
@@ -183,8 +190,8 @@ async function testHoldCoordination() {
   check("slot livre antes do hold", freeForA.rows[0].free === true);
   await a.query(
     `INSERT INTO appointment_holds (id, barbershop_id, professional_id, service_id,
-       starts_at, ends_at, expires_at, session_token_hash)
-     VALUES ($1,$2,$3,$4,$5,$6, now() + interval '5 minutes', $7)`,
+       starts_at, ends_at, occupies_from, occupies_to, expires_at, session_token_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$5,$6, now() + interval '5 minutes', $7)`,
     [randomUUID(), SHOP_A, PRO_A, SVC_A, start, end, `sess_${randomUUID()}`]
   );
 
@@ -212,8 +219,8 @@ async function testHoldCoordination() {
   await reset(admin);
   await admin.query(
     `INSERT INTO appointment_holds (id, barbershop_id, professional_id, service_id,
-       starts_at, ends_at, expires_at, session_token_hash)
-     VALUES ($1,$2,$3,$4,$5,$6, now() - interval '1 minute', $7)`,
+       starts_at, ends_at, occupies_from, occupies_to, expires_at, session_token_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$5,$6, now() - interval '1 minute', $7)`,
     [randomUUID(), SHOP_A, PRO_A, SVC_A, start, end, `sess_${randomUUID()}`]
   );
   const afterExpiry = await admin.query(slotFreeSql, [PRO_A, start, end]);
@@ -221,6 +228,47 @@ async function testHoldCoordination() {
 
   await reset(admin);
   await Promise.all([a.end(), b.end(), admin.end()]);
+}
+
+// --- 3b. Buffers protegidos pelo banco -------------------------------------
+// A constraint age sobre o footprint, não sobre o horário do serviço: sem isso,
+// uma corrida encaixaria um corte dentro do intervalo de preparo de outro.
+async function testBufferProtection() {
+  console.log("\n3b) Buffer protegido pela constraint");
+  const c = await connect();
+  await reset(c);
+
+  const start = "2026-10-04T13:00:00Z";
+  const end = "2026-10-04T13:45:00Z";
+  // Serviço das 13:00 às 13:45, com 15 min de buffer depois: ocupa até 14:00
+  await c.query(
+    appointmentInsert(randomUUID(), start, end, "CONFIRMED", { to: "2026-10-04T14:00:00Z" })
+  );
+
+  // Começar 13:45 é dentro do buffer — deve ser recusado
+  const dentroDoBuffer = await c
+    .query(appointmentInsert(randomUUID(), "2026-10-04T13:45:00Z", "2026-10-04T14:30:00Z"))
+    .then(() => ({ ok: true }), (e) => ({ ok: false, error: e.message }));
+  check("agendar dentro do buffer é recusado", !dentroDoBuffer.ok);
+
+  // Começar 14:00, quando o buffer termina, é permitido
+  const depoisDoBuffer = await c
+    .query(appointmentInsert(randomUUID(), "2026-10-04T14:00:00Z", "2026-10-04T14:45:00Z"))
+    .then(() => ({ ok: true }), (e) => ({ ok: false, error: e.message }));
+  check("agendar após o buffer é permitido", depoisDoBuffer.ok, depoisDoBuffer.error);
+
+  // O footprint nunca pode ser menor que o serviço
+  const footprintInvalido = await c
+    .query(
+      appointmentInsert(randomUUID(), "2026-10-04T16:00:00Z", "2026-10-04T16:45:00Z", "CONFIRMED", {
+        from: "2026-10-04T16:30:00Z",
+      })
+    )
+    .then(() => ({ ok: true }), (e) => ({ ok: false, error: e.message }));
+  check("footprint menor que o serviço é recusado", !footprintInvalido.ok);
+
+  await reset(c);
+  await c.end();
 }
 
 // --- 4. Dedupe de cliente e isolamento entre tenants ------------------------
@@ -241,8 +289,13 @@ async function testCustomerDedupe() {
     dup.ok ? "duplicou — CRM corrompido" : ""
   );
 
+  // Escopado às duas barbearias da fixture: o banco de desenvolvimento pode
+  // ter outras barbearias com o mesmo telefone, e isso não invalida nada — é
+  // justamente o comportamento esperado.
   const { rows } = await c.query(
-    "SELECT count(*)::int AS n FROM barbershop_customers WHERE normalized_phone = '+5511999990000'"
+    `SELECT count(*)::int AS n FROM barbershop_customers
+      WHERE normalized_phone = '+5511999990000' AND barbershop_id = ANY($1::uuid[])`,
+    [[SHOP_A, SHOP_B]]
   );
   check(
     "mesmo telefone existe em barbearias diferentes (isolamento)",
@@ -288,6 +341,7 @@ const start = Date.now();
 await testConcurrentDoubleBooking();
 await testStatusOccupancy();
 await testHoldCoordination();
+await testBufferProtection();
 await testCustomerDedupe();
 await testVerifiedPhoneUniqueness();
 

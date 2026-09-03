@@ -1,12 +1,23 @@
 import { z } from "zod";
 
-/// Telefone sempre trafega em E.164; a normalização acontece no servidor antes
-/// de qualquer gravação, porque é a chave de deduplicação da relação com a
-/// barbearia (docs/tech-review-part2.md §2.1).
+/// Telefone em E.164. Usado nas RESPOSTAS e internamente — nunca para validar
+/// o que o cliente digita.
 export const e164Phone = z
   .string()
   .trim()
   .regex(/^\+[1-9]\d{7,14}$/, "Telefone deve estar em formato internacional (E.164)");
+
+/// Telefone como o cliente digita: "(11) 99999-0000", "11999990000",
+/// "+55 11 99999-0000". A normalização para E.164 é feita no servidor, que é
+/// onde ela precisa estar — é a chave de deduplicação do cliente
+/// (docs/tech-review-part2.md §2.1), e exigir o formato pronto obrigaria o
+/// front a replicar uma regra crítica (Parte 2 §8).
+export const phoneInput = z
+  .string()
+  .trim()
+  .min(8, "Telefone muito curto")
+  .max(20, "Telefone muito longo")
+  .regex(/^[\d\s()+-]+$/, "Telefone deve conter apenas números e separadores");
 
 export const uuid = z.string().uuid();
 
