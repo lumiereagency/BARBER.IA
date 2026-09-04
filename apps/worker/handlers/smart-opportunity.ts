@@ -9,20 +9,19 @@
 // agendamento cancelado): a vaga anunciada é a que o cliente perdeu, não uma
 // janela recalculada — é isso que torna a estimativa de receita uma
 // consulta, não uma invenção (docs/tech-review-part2.md §3.5).
+//
+// share_token_hash nasce nulo (Decisão de schema: "Nulo enquanto a vaga não
+// tiver link compartilhável gerado"). O token só é gerado quando a equipe
+// pede o link no painel (Marco 6.6) — gerar aqui e nunca entregar o token cru
+// a ninguém tornaria a vaga permanentemente incompartilhável, já que só o
+// hash fica no banco.
 
 import { prisma } from "@barber/db";
 import { barbershopFeatures } from "@barber/entitlements";
-import { generateToken, hashToken } from "@barber/domain";
 
 /// Vaga só vale a pena anunciar perto o bastante: reagendar um cancelamento
 /// de daqui a três meses não tem candidato disponível para decidir agora.
 const JANELA_HORAS = 72;
-
-function tokenSecret(): string {
-  const secret = process.env.TOKEN_HMAC_SECRET;
-  if (!secret) throw new Error("TOKEN_HMAC_SECRET não configurado");
-  return secret;
-}
 
 export interface DetectSmartOpportunityPayload {
   appointmentId: string;
@@ -88,8 +87,6 @@ export async function detectSmartOpportunity(
     compatibleServiceIds.push(appointment.serviceId);
   }
 
-  const token = generateToken();
-
   await prisma.smartOpportunity.create({
     data: {
       barbershopId: appointment.barbershopId,
@@ -102,7 +99,7 @@ export async function detectSmartOpportunity(
       estimatedRevenueMinor: appointment.priceSnapshotMinor,
       status: "OPEN",
       expiresAt: appointment.startsAt,
-      shareTokenHash: hashToken(token, tokenSecret()),
+      // shareTokenHash: null — só o painel da equipe gera o link (Marco 6.6).
     },
   });
 }

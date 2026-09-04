@@ -202,7 +202,11 @@ describe("geração da vaga", () => {
       false,
       "serviço mais longo que o espaço liberado não é compatível"
     );
-    assert.ok(vaga.shareTokenHash, "vaga já nasce com link compartilhável");
+    assert.equal(
+      vaga.shareTokenHash,
+      null,
+      "o link só é gerado quando a equipe pede, no painel (Marco 6.6)"
+    );
     assert.equal(vaga.expiresAt.getTime(), appointment.startsAt.getTime());
   });
 

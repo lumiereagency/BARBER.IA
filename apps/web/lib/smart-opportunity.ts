@@ -7,13 +7,45 @@
 // (docs/tech-review-part2.md §3.5).
 
 import { prisma } from "@barber/db";
-import { addMinutes, hashToken } from "@barber/domain";
+import { addMinutes, generateToken, hashToken } from "@barber/domain";
 import { NotFoundError, PolicyError, SlotUnavailableError, confirmAppointment, createHold } from "./booking.ts";
 
 function tokenSecret(): string {
   const secret = process.env.TOKEN_HMAC_SECRET;
   if (!secret) throw new Error("TOKEN_HMAC_SECRET não configurado");
   return secret;
+}
+
+function baseUrl(): string {
+  return process.env.APP_BASE_URL ?? "http://localhost:3000";
+}
+
+export interface GenerateShareLinkResult {
+  shareUrl: string;
+}
+
+/// Gera o link compartilhável de uma vaga — só a equipe pode pedir isto, e só
+/// uma vez: o token cru nunca é gravado, então perder o que foi copiado
+/// significa não ter como reexibi-lo (mesma garantia dos tokens de gestão de
+/// agendamento, Parte 2 §5.4).
+export async function generateShareLink(
+  barbershopId: string,
+  opportunityId: string
+): Promise<GenerateShareLinkResult> {
+  const opportunity = await prisma.smartOpportunity.findFirst({
+    where: { id: opportunityId, barbershopId },
+  });
+  if (!opportunity) throw new NotFoundError("Vaga não encontrada");
+  if (opportunity.status !== "OPEN") throw new PolicyError("Esta vaga não está mais aberta");
+  if (opportunity.shareTokenHash) throw new PolicyError("O link desta vaga já foi gerado");
+
+  const token = generateToken();
+  await prisma.smartOpportunity.update({
+    where: { id: opportunity.id },
+    data: { shareTokenHash: hashToken(token, tokenSecret()) },
+  });
+
+  return { shareUrl: `${baseUrl()}/vaga/${token}` };
 }
 
 export async function findOpenOpportunityByToken(token: string) {

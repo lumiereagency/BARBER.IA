@@ -16,7 +16,7 @@ process.env.TOKEN_HMAC_SECRET ??= "test-only-secret";
 
 const { prisma } = await import("@barber/db");
 const { generateToken, hashToken } = await import("@barber/domain");
-const { claimSmartOpportunity } = await import("../lib/smart-opportunity.ts");
+const { claimSmartOpportunity, generateShareLink } = await import("../lib/smart-opportunity.ts");
 const { NotFoundError, PolicyError, SlotUnavailableError } = await import("../lib/booking.ts");
 
 const SHOP = randomUUID();
@@ -183,5 +183,72 @@ describe("reivindicação", () => {
     });
     assert.equal(opportunity.status, "FILLED");
     assert.equal(opportunity.claimedAppointmentId, vencedores[0].value.appointmentId);
+  });
+});
+
+describe("gerar link compartilhável (painel da equipe, Marco 6.6)", () => {
+  test("vaga nasce sem link — só a equipe gera", async () => {
+    await criarVaga({ shareTokenHash: null });
+
+    const opportunity = await prisma.smartOpportunity.findFirstOrThrow({
+      where: { barbershopId: SHOP },
+    });
+    assert.equal(opportunity.shareTokenHash, null);
+  });
+
+  test("gerar o link grava o hash e devolve uma URL /vaga/ funcional", async () => {
+    const { startsAt } = await criarVaga({ shareTokenHash: null });
+    const opportunity = await prisma.smartOpportunity.findFirstOrThrow({
+      where: { barbershopId: SHOP },
+    });
+
+    const { shareUrl } = await generateShareLink(SHOP, opportunity.id);
+    assert.ok(shareUrl.includes("/vaga/"));
+
+    const geradoToken = shareUrl.split("/vaga/")[1];
+    const claimed = await claimSmartOpportunity({
+      token: geradoToken,
+      serviceId: SERVICE,
+      customerName: "Cliente via link gerado",
+      customerPhone: "11977776666",
+      acceptedTermsVersion: "dev-0",
+    });
+    assert.ok(claimed.appointmentId);
+
+    const appointment = await prisma.appointment.findUniqueOrThrow({
+      where: { id: claimed.appointmentId },
+    });
+    assert.equal(appointment.startsAt.getTime(), startsAt.getTime());
+  });
+
+  test("gerar o link duas vezes é recusado — token cru nunca é regravado", async () => {
+    await criarVaga({ shareTokenHash: null });
+    const entry = await prisma.smartOpportunity.findFirstOrThrow({ where: { barbershopId: SHOP } });
+
+    await generateShareLink(SHOP, entry.id);
+    await assert.rejects(() => generateShareLink(SHOP, entry.id), PolicyError);
+  });
+
+  test("vaga de outra barbearia não é encontrada", async () => {
+    const OUTRA_SHOP = randomUUID();
+    await prisma.barbershop.create({
+      data: { id: OUTRA_SHOP, name: "Outra Barbearia", slug: `outra-${OUTRA_SHOP.slice(0, 8)}` },
+    });
+
+    try {
+      await criarVaga({ shareTokenHash: null });
+      const entry = await prisma.smartOpportunity.findFirstOrThrow({ where: { barbershopId: SHOP } });
+
+      await assert.rejects(() => generateShareLink(OUTRA_SHOP, entry.id), NotFoundError);
+    } finally {
+      await prisma.barbershop.delete({ where: { id: OUTRA_SHOP } });
+    }
+  });
+
+  test("vaga já preenchida não gera link", async () => {
+    await criarVaga({ shareTokenHash: null, status: "FILLED" });
+    const entry = await prisma.smartOpportunity.findFirstOrThrow({ where: { barbershopId: SHOP } });
+
+    await assert.rejects(() => generateShareLink(SHOP, entry.id), PolicyError);
   });
 });
