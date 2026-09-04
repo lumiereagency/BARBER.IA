@@ -67,7 +67,7 @@ não existem — marcadas como **planejada**.
 | `/gestao/servicos` | Serviços | Dono, Admin | Construída |
 | `/gestao/configuracoes` | Configurações da barbearia | Dono, Admin | Construída |
 | `/gestao/integracoes` | Integrações (Google Agenda) | Dono, Admin, Profissional (a própria) | Construída |
-| `/clientes` | Clientes / CRM | Dono, Admin, Recepção | Planejada (G2) |
+| `/clientes` | Clientes / CRM | Dono, Admin, Recepção | Construída |
 | `/inteligencia` | Agenda Inteligente | Dono, Admin, Recepção | Planejada (Marco 6) |
 | `/gestao/promocoes` | Promoções | Dono, Admin | Planejada (G3 / Marco 6) |
 | `/relatorios` | Relatórios | Dono, Admin | Planejada (Marco 6) |
@@ -109,7 +109,7 @@ Equipe — Dono / Admin
 ├─ Entrar (/entrar) · Criar conta (/criar-conta)
 ├─ Hoje (/hoje)
 ├─ Agenda (/agenda)
-├─ Clientes (/clientes) — planejada
+├─ Clientes (/clientes)
 ├─ Equipe (/equipe)
 ├─ Inteligência (/inteligencia) — Marco 6
 ├─ Gestão
@@ -398,6 +398,38 @@ construído e validado:
   contra o build retemado.
 
 Pendências que continuam abertas (não bloqueiam o que já foi entregue):
-site institucional (G1, adiado), tela Clientes (G2), componentes do §22 ainda
-sem versão própria (drawer, dialog, command palette, table — hoje as telas
-usam `<details>`/página cheia), fotografia real (P4).
+site institucional (G1, adiado), componentes do §22 ainda sem versão própria
+(drawer, dialog, command palette, table — hoje as telas usam `<details>`/
+página cheia), fotografia real (P4).
+
+---
+
+## 11. Tela Clientes (G2) — implementada em 2026-09-04
+
+Fechou o gap G2: a permissão já existia no RBAC e o CRM automático já existia
+desde o Marco 4 (`packages/domain/src/crm.ts`, materializado em
+`barbershop_customers`) — faltava só a tela, e ela não dependia de nenhuma
+decisão de roteiro nova.
+
+- `/clientes` — busca imediata (nome ou telefone, debounce de 250ms, estado na
+  URL), filtro "já voltaram" (`completedVisitsCount >= 2`), indicador de
+  retorno por linha, avatar com iniciais.
+- `/clientes/[id]` — os dez indicadores do CRM automático, tags (leitura),
+  consentimento **somente leitura** com a frase explícita de que só o cliente
+  concede ou revoga (§21/§27: nunca inferido, nunca concedido pela equipe),
+  nota restrita por `customers.notes.read`/`customers.write`, e um botão de
+  WhatsApp que é sempre um link manual (`wa.me/{telefone}`, sem mensagem
+  pré-escrita, `target="_blank"`) — nunca um envio automático.
+- Reativa o item "Clientes" no menu do painel (removido no Marco 5 por ser
+  link morto) — agora aponta para uma tela de verdade.
+- Fora do escopo desta entrega, de propósito: edição de tags (o vocabulário
+  controlado citado no schema ainda não foi definido em nenhum lugar do
+  código) e mensagens de retorno automatizadas (`comeBackMessage` em
+  `packages/domain/src/whatsapp.ts` já existe, mas é do Marco 6 — a Agenda
+  Inteligente decide quando sugerir contato, esta tela não).
+- Testado com dados semeados direto no banco (o cálculo do CRM já tem
+  cobertura própria em `packages/domain/tests/crm.test.mjs`; o que esta tela
+  precisa provar é que lê e isola por tenant corretamente, não que a conta
+  está certa): `apps/web/tests/clientes.e2e.mjs`, 10 testes — lista, busca,
+  filtro, indicadores, consentimento como informação, WhatsApp manual, nota
+  editável e persistente. Validado nos dois temas.

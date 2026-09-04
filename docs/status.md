@@ -113,10 +113,12 @@ Registradas aqui porque mudaram o que já estava escrito:
   configurar não pode virar um sistema que parece enviar e não envia); com
   `SMS_PROVIDER=log`, alguém pediu por isso, e a aplicação avisa alto a cada
   inicialização se estiver em produção.
-- **Tirei "Clientes" do menu do painel.** O item apontava para uma tela que
-  nunca foi construída. Além do 404, o Next faz prefetch de todo `Link` visível:
-  a requisição pendente para a rota inexistente segurava a navegação em todas as
-  páginas do painel. Volta quando a tela de CRM da equipe existir (Marco 6).
+- **Tirei "Clientes" do menu do painel, depois trouxe de volta.** O item
+  apontava para uma tela que ainda não existia; o Next faz prefetch de todo
+  `Link` visível, e a requisição pendente para a rota inexistente segurava a
+  navegação em todas as páginas do painel. A tela (`/clientes`) foi construída
+  fora da ordem dos marcos — não dependia de nenhuma decisão do Marco 6, só do
+  CRM que já existia desde o Marco 4 — e o item voltou ao menu.
 - **A constraint anti-conflito cobre `CONFIRMED`, `COMPLETED` e `NO_SHOW`.**
   Restringir a `CONFIRMED` permitiria gravar um atendimento retroativo por cima
   de outro já realizado.

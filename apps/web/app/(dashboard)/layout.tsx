@@ -7,6 +7,7 @@ import {
   Settings,
   Link as LinkIcon,
   Scissors,
+  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -28,9 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const nav: Array<{ href: string; label: string; icon: LucideIcon; permission: Parameters<typeof can>[1] }> = [
     { href: "/hoje", label: "Hoje", icon: House, permission: "appointments.read.own" as const },
     { href: "/agenda", label: "Agenda", icon: CalendarDays, permission: "appointments.read.own" as const },
-    // "Clientes" volta quando a tela de CRM da equipe existir. Um item de menu
-    // que leva a lugar nenhum não é só um 404: o Next faz prefetch dele em toda
-    // página do painel, e a requisição pendente atrasa a navegação inteira.
+    { href: "/clientes", label: "Clientes", icon: UserRound, permission: "customers.read" as const },
     { href: "/equipe", label: "Equipe", icon: Users, permission: "professionals.read" as const },
     { href: "/gestao/servicos", label: "Serviços", icon: Scissors, permission: "services.read" as const },
     { href: "/gestao/integracoes", label: "Integrações", icon: LinkIcon, permission: "integrations.read" as const },
