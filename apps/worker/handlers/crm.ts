@@ -7,8 +7,8 @@
 // reprocessar o mesmo evento produz exatamente o mesmo estado. Isso é o que
 // permite ao outbox reentregar sem medo.
 
-import { prisma } from "@barber/db";
-import { computeCrmSummary, type CrmAppointment } from "@barber/domain";
+import { Prisma, prisma } from "@barber/db";
+import { computeCrmSummary, computeReturnScore, type CrmAppointment } from "@barber/domain";
 
 export interface RecomputeCrmPayload {
   barbershopCustomerId: string;
@@ -58,6 +58,32 @@ export async function recomputeCustomerCrm(payload: RecomputeCrmPayload): Promis
       averageReturnDays: resumo.averageReturnDays,
       preferredProfessionalId: resumo.preferredProfessionalId,
       preferredServiceId: resumo.preferredServiceId,
+    },
+  });
+
+  // Mesmo gatilho, mesmos dados de entrada: a pontuação de retorno (Marco 6)
+  // usa exatamente os agregados que o CRM acabou de calcular, então é
+  // recomputada aqui em vez de virar um segundo job redundante.
+  const pontuacao = computeReturnScore({
+    completedVisitsCount: resumo.completedVisitsCount,
+    lastVisitAt: resumo.lastVisitAt,
+    averageReturnDays: resumo.averageReturnDays,
+    noShowCount: resumo.noShowCount,
+    cancelledCount: resumo.cancelledCount,
+  });
+
+  await prisma.customerReturnScore.upsert({
+    where: { barbershopCustomerId: relation.id },
+    create: {
+      barbershopId: relation.barbershopId,
+      barbershopCustomerId: relation.id,
+      score: pontuacao.score,
+      reasons: pontuacao.reasons as unknown as Prisma.InputJsonValue,
+    },
+    update: {
+      score: pontuacao.score,
+      reasons: pontuacao.reasons as unknown as Prisma.InputJsonValue,
+      computedAt: new Date(),
     },
   });
 }

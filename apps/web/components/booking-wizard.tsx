@@ -44,7 +44,7 @@ interface Confirmation {
   calendarUrl: string | null;
 }
 
-type Step = "servico" | "profissional" | "horario" | "dados" | "sucesso";
+type Step = "servico" | "profissional" | "horario" | "dados" | "sucesso" | "espera" | "espera_ok";
 
 const formatPrice = (minor: number) =>
   (minor / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -175,6 +175,37 @@ export function BookingWizard({
 
       setHold({ token: body.holdToken, slot, expiresAt: body.expiresAt });
       setStep("dados");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function joinWaitlist(event: React.FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/public/shops/${slug}/waitlist`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          customerName: name,
+          customerPhone: phone,
+          serviceId: serviceId || undefined,
+          professionalId: professionalId ?? undefined,
+          acceptedTermsVersion: termsVersion,
+          contactConsentTextVersion: termsVersion,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json();
+        setMessage(body?.error?.message ?? "Não foi possível entrar na lista de espera.");
+        return;
+      }
+
+      setStep("espera_ok");
     } finally {
       setSubmitting(false);
     }
@@ -389,13 +420,22 @@ export function BookingWizard({
               <p className="text-sm text-ink">
                 Não há horários livres nos próximos dias.
               </p>
-              <button
-                type="button"
-                onClick={() => setStep("profissional")}
-                className="mt-3 text-sm font-medium underline"
-              >
-                Tentar com outro profissional
-              </button>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => setStep("profissional")}
+                  className="text-sm font-medium underline"
+                >
+                  Tentar com outro profissional
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep("espera")}
+                  className="rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium text-ink sm:ml-auto"
+                >
+                  Entrar na lista de espera
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
@@ -510,6 +550,79 @@ export function BookingWizard({
             </button>
           </form>
         </section>
+      ) : null}
+
+      {step === "espera" ? (
+        <section>
+          <h2 className="mb-2 text-lg font-semibold text-ink">Entrar na lista de espera</h2>
+          <p className="mb-4 text-sm text-ink-secondary">
+            Avisamos assim que abrir um horário compatível — o contato é sempre feito
+            diretamente pela barbearia.
+          </p>
+
+          <form onSubmit={joinWaitlist} className="space-y-4">
+            <div>
+              <label htmlFor="espera-nome" className="mb-1 block text-sm font-medium text-ink">
+                Seu nome
+              </label>
+              <input
+                id="espera-nome"
+                required
+                minLength={2}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full rounded-lg border border-line-subtle px-3 py-3 text-base"
+                autoComplete="name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="espera-telefone" className="mb-1 block text-sm font-medium text-ink">
+                WhatsApp
+              </label>
+              <input
+                id="espera-telefone"
+                required
+                inputMode="tel"
+                placeholder="(11) 99999-0000"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                className="w-full rounded-lg border border-line-subtle px-3 py-3 text-base"
+                autoComplete="tel"
+              />
+            </div>
+
+            <label className="flex items-start gap-3 text-sm text-ink">
+              <input
+                type="checkbox"
+                required
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                className="mt-1 h-5 w-5"
+              />
+              <span>
+                Aceito os termos de uso e ser contatado(a) sobre esta lista de espera.
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-lg bg-brand-500 px-4 py-3 font-medium text-ink-inverse disabled:opacity-50"
+            >
+              {submitting ? "Entrando…" : "Entrar na lista de espera"}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      {step === "espera_ok" ? (
+        <div className="animate-celebrate rounded-xl bg-success/12 p-5">
+          <h2 className="text-lg font-semibold text-success">Você está na lista!</h2>
+          <p className="mt-2 text-success">
+            Avisamos assim que abrir um horário compatível com o que você escolheu.
+          </p>
+        </div>
       ) : null}
     </div>
   );

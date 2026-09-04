@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm --filter @barber/domain --filter @barber/api-contracts build && dotenv -e ../../.env -- node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs tests/integracoes.test.mjs tests/onboarding.test.mjs tests/vaga.test.mjs",
+    "test": "pnpm --filter @barber/domain --filter @barber/api-contracts build && dotenv -e ../../.env -- node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs tests/integracoes.test.mjs tests/onboarding.test.mjs tests/vaga.test.mjs tests/waitlist.test.mjs",
     "prebuild": "pnpm --filter @barber/domain --filter @barber/api-contracts build",
     "test:e2e": "dotenv -e ../../.env -- node --test tests/flow.e2e.mjs",
     "seed:demo": "dotenv -e ../../.env -- node --experimental-strip-types scripts/seed-demo.mjs",
