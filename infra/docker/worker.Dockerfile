@@ -8,6 +8,11 @@ FROM node:22-alpine AS base
 # aparece rodando de verdade, nunca em teste local fora do Alpine.
 RUN apk add --no-cache openssl
 RUN corepack enable
+# corepack só baixa a versão fixada de pnpm na primeira vez que ele é
+# invocado — sem isto aqui, o CMD deste worker (que roda "pnpm --filter
+# @barber/worker start") tentaria baixá-lo em tempo de execução, e a rede
+# `internal` do compose não alcança a internet, de propósito.
+RUN corepack prepare pnpm@10.33.0 --activate  # mantenha em sincronia com "packageManager" em /package.json
 WORKDIR /repo
 
 FROM base AS deps
