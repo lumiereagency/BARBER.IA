@@ -353,6 +353,16 @@ export async function cancelAppointment(input: CancelInput): Promise<void> {
         payload: { appointmentId: appointment.id },
       },
     });
+
+    // Cancelamento pode liberar uma vaga que vale a pena anunciar (Marco 6,
+    // Agenda Inteligente) — a decisão de anunciar ou não é toda do worker.
+    await tx.outboxEvent.create({
+      data: {
+        barbershopId: appointment.barbershopId,
+        type: "DETECT_SMART_OPPORTUNITY",
+        payload: { appointmentId: appointment.id },
+      },
+    });
   });
 }
 
@@ -593,6 +603,16 @@ async function changeStatus(
         data: {
           barbershopId: appointment.barbershopId,
           type: target === "CANCELLED_BY_SHOP" ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_CONFIRMED",
+          payload: { appointmentId: appointment.id },
+        },
+      });
+    }
+
+    if (target === "CANCELLED_BY_SHOP") {
+      await tx.outboxEvent.create({
+        data: {
+          barbershopId: appointment.barbershopId,
+          type: "DETECT_SMART_OPPORTUNITY",
           payload: { appointmentId: appointment.id },
         },
       });

@@ -6,7 +6,7 @@
     "start": "tsx index.ts",
     "dev": "tsx watch index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "dotenv -e ../../.env -- node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "dotenv -e ../../.env -- node --experimental-strip-types --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "@barber/config": "workspace:*",

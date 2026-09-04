@@ -16,6 +16,7 @@ import {
   syncRescheduledAppointment,
 } from "@barber/integrations";
 import { recomputeCustomerCrm } from "./handlers/crm.ts";
+import { detectSmartOpportunity } from "./handlers/smart-opportunity.ts";
 
 const BATCH_SIZE = 20;
 const MAX_ATTEMPTS = 5;
@@ -43,6 +44,9 @@ const HANDLERS: Record<string, Handler> = {
   /// Enfileirado pela reconciliação, não por uma mudança de domínio
   SYNC_CALENDAR: (payload) =>
     syncAppointmentToCalendar({ appointmentId: String(payload.appointmentId) }),
+
+  DETECT_SMART_OPPORTUNITY: (payload) =>
+    detectSmartOpportunity({ appointmentId: String(payload.appointmentId) }),
 };
 
 /// Espera exponencial: 1min, 2min, 4min… Falha transitória de rede não deve
@@ -138,6 +142,16 @@ export async function purgeExpiredHolds(): Promise<number> {
   return count;
 }
 
+/// Vaga vencida (o horário chegou e ninguém confirmou) sai do estado OPEN —
+/// nunca é apagada, para o histórico de oportunidades continuar consultável.
+export async function expireSmartOpportunities(): Promise<number> {
+  const { count } = await prisma.smartOpportunity.updateMany({
+    where: { status: "OPEN", expiresAt: { lte: new Date() } },
+    data: { status: "EXPIRED" },
+  });
+  return count;
+}
+
 /// Reconciliação é varredura, não reação: roda em intervalo próprio para não
 /// consultar todas as conexões a cada ciclo de 5 segundos.
 const RECONCILE_INTERVAL_MS = 5 * 60_000;
@@ -145,6 +159,7 @@ let proximaReconciliacao = 0;
 
 async function tick(): Promise<void> {
   const liberados = await purgeExpiredHolds();
+  const vagasExpiradas = await expireSmartOpportunities();
   const { processados, falhas } = await processBatch();
 
   let reconciliados = 0;
@@ -158,10 +173,10 @@ async function tick(): Promise<void> {
     });
   }
 
-  if (liberados || processados || falhas || reconciliados) {
+  if (liberados || vagasExpiradas || processados || falhas || reconciliados) {
     console.info(
-      `[worker] holds liberados: ${liberados}, eventos: ${processados}, ` +
-        `falhas: ${falhas}, reconciliados: ${reconciliados}`
+      `[worker] holds liberados: ${liberados}, vagas expiradas: ${vagasExpiradas}, ` +
+        `eventos: ${processados}, falhas: ${falhas}, reconciliados: ${reconciliados}`
     );
   }
 }
