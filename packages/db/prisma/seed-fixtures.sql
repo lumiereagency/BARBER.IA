@@ -1,9 +1,10 @@
 -- Fixture mínima usada pelos testes de garantia do banco.
 -- Duas barbearias, para exercitar isolamento entre tenants.
-
-INSERT INTO plans (id, code, name, price_minor, features, updated_at) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'essential', 'Essencial', 6900, '{"smartAgenda":false,"waitlist":false}', now()),
-  ('11111111-1111-1111-1111-111111111112', 'pro', 'Pro', 14900, '{"smartAgenda":true,"waitlist":true}', now());
+--
+-- Os planos (essential/pro) não entram aqui: desde a migração
+-- planos_essencial_pro eles já vêm semeados pela própria migração (é dado de
+-- produção, não fixture de teste) — inserir de novo aqui duplicaria a chave
+-- única de `code` e quebraria esta carga.
 
 INSERT INTO barbershops (id, name, slug, timezone, updated_at) VALUES
   ('22222222-2222-2222-2222-222222222221', 'Barbearia A', 'barbearia-a', 'America/Sao_Paulo', now()),

@@ -9,3 +9,4 @@ export * from "./slug.js";
 export * from "./whatsapp.js";
 export * from "./crm.js";
 export * from "./crypto.js";
+export * from "./entitlements.js";

@@ -77,7 +77,7 @@ jobs:
         run: pnpm --filter @barber/db exec node tests/guarantees.test.mjs
 
       - name: Testes de integração (agendamento, tenancy e autorização)
-        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs tests/integracoes.test.mjs
+        run: pnpm --filter @barber/web exec node --experimental-strip-types --test tests/booking.test.mjs tests/tenancy.test.mjs tests/operacao.test.mjs tests/consumidor.test.mjs tests/integracoes.test.mjs tests/onboarding.test.mjs
 
       # Cadeia inteira da integração externa: reserva, outbox, worker e um
       # provedor que falha sob comando. É o que prova o Marco 5.

@@ -45,6 +45,11 @@ export interface SignUpResult {
   slug: string;
 }
 
+/// Dias de trial no Pro para toda barbearia nova (decisão registrada em
+/// docs/design-part4.md: nasce em TRIALING no Pro, não no Essencial, para dar
+/// acesso completo à Agenda Inteligente e aos relatórios desde o início).
+const TRIAL_DAYS = 14;
+
 /// Slug livre a partir de uma base. A corrida com outro cadastro simultâneo é
 /// resolvida pela constraint de unicidade, não por esta consulta — aqui só
 /// buscamos um bom candidato.
@@ -102,6 +107,22 @@ export async function signUpOwner(input: SignUpInput): Promise<SignUpResult> {
           userId: user.id,
           role: "OWNER",
           status: "ACTIVE",
+        },
+      });
+
+      // Toda barbearia nasce em trial no Pro — sem isso, ninguém veria a
+      // Agenda Inteligente ou os relatórios avançados sem uma assinatura paga
+      // primeiro, e o Marco 7 (cobrança) ainda não existe para vender uma.
+      const proPlan = await tx.plan.findUniqueOrThrow({ where: { code: "pro" } });
+      const trialStart = new Date();
+      const trialEnd = new Date(trialStart.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+      await tx.subscription.create({
+        data: {
+          barbershopId: barbershop.id,
+          planId: proPlan.id,
+          status: "TRIALING",
+          currentPeriodStart: trialStart,
+          currentPeriodEnd: trialEnd,
         },
       });
 
