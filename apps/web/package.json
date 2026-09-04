@@ -11,7 +11,7 @@
     "prebuild": "pnpm --filter @barber/domain --filter @barber/api-contracts build",
     "test:e2e": "dotenv -e ../../.env -- node --test tests/flow.e2e.mjs",
     "seed:demo": "dotenv -e ../../.env -- node --experimental-strip-types scripts/seed-demo.mjs",
-    "test:ui": "node --test tests/ui.e2e.mjs tests/onboarding.e2e.mjs tests/agenda.e2e.mjs tests/consumidor.e2e.mjs tests/integracoes.e2e.mjs tests/clientes.e2e.mjs"
+    "test:ui": "node --test tests/ui.e2e.mjs tests/onboarding.e2e.mjs tests/agenda.e2e.mjs tests/consumidor.e2e.mjs tests/integracoes.e2e.mjs tests/clientes.e2e.mjs tests/agenda-inteligente.e2e.mjs"
   },
   "dependencies": {
     "@barber/api-contracts": "workspace:*",

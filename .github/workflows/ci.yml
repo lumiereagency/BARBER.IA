@@ -108,6 +108,7 @@ jobs:
           BASE_URL=http://127.0.0.1:3000 SERVER_LOG=/tmp/next.log pnpm --filter @barber/web exec node --test tests/consumidor.e2e.mjs
           BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/integracoes.e2e.mjs
           BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/clientes.e2e.mjs
+          BASE_URL=http://127.0.0.1:3000 pnpm --filter @barber/web exec node --test tests/agenda-inteligente.e2e.mjs
         env:
           APP_BASE_URL: http://127.0.0.1:3000
 
