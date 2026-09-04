@@ -12,6 +12,7 @@ const nextConfig = {
     "@barber/api-contracts",
     "@barber/config",
     "@barber/integrations",
+    "@barber/entitlements",
   ],
   experimental: {
     // O engine do Prisma é carregado dinamicamente, então o tracer do Next não

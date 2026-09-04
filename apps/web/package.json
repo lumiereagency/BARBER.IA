@@ -18,6 +18,7 @@
     "@barber/config": "workspace:*",
     "@barber/db": "workspace:*",
     "@barber/domain": "workspace:*",
+    "@barber/entitlements": "workspace:*",
     "@barber/integrations": "workspace:*",
     "@prisma/client": "^5.22.0",
     "framer-motion": "^13.2.0",

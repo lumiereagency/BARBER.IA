@@ -29,6 +29,9 @@ importers:
       '@barber/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@barber/entitlements':
+        specifier: workspace:*
+        version: link:../../packages/entitlements
       '@barber/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
@@ -93,6 +96,9 @@ importers:
       '@barber/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@barber/entitlements':
+        specifier: workspace:*
+        version: link:../../packages/entitlements
       '@barber/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
@@ -158,6 +164,25 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+
+  packages/entitlements:
+    dependencies:
+      '@barber/db':
+        specifier: workspace:*
+        version: link:../db
+      '@barber/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      dotenv-cli:
+        specifier: ^7.4.2
+        version: 7.4.4
       typescript:
         specifier: ^5.6.2
         version: 5.9.3
