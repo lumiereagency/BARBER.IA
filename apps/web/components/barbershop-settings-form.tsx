@@ -33,7 +33,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Salvando…" : "Salvar configurações"}
     </button>
@@ -44,14 +44,14 @@ export function BarbershopSettingsForm({ shop }: { shop: ShopValues }) {
   const [state, formAction] = useFormState(saveBarbershop, initialState);
 
   return (
-    <form action={formAction} className="space-y-5 rounded-xl border border-neutral-200 bg-white p-4">
+    <form action={formAction} className="space-y-5 rounded-xl border border-line-subtle bg-surface-1 p-4">
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg bg-error/12 p-3 text-sm text-error">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg bg-success/12 p-3 text-sm text-success">
           Configurações salvas.
         </p>
       ) : null}
@@ -68,7 +68,7 @@ export function BarbershopSettingsForm({ shop }: { shop: ShopValues }) {
       </Field>
 
       <Field label="Fuso horário">
-        <select name="timezone" defaultValue={shop.timezone} className={`${inputClass} bg-white`}>
+        <select name="timezone" defaultValue={shop.timezone} className={inputClass}>
           {TIMEZONES.map((zone) => (
             <option key={zone.value} value={zone.value}>
               {zone.label}
@@ -90,14 +90,14 @@ export function BarbershopSettingsForm({ shop }: { shop: ShopValues }) {
         />
       </Field>
 
-      <hr className="border-neutral-200" />
+      <hr className="border-line-subtle" />
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Intervalo entre horários">
           <select
             name="slotGranularityMinutes"
             defaultValue={shop.slotGranularityMinutes}
-            className={`${inputClass} bg-white`}
+            className={inputClass}
           >
             <option value={10}>10 minutos</option>
             <option value={15}>15 minutos</option>
@@ -110,7 +110,7 @@ export function BarbershopSettingsForm({ shop }: { shop: ShopValues }) {
           <select
             name="holdDurationMinutes"
             defaultValue={shop.holdDurationMinutes}
-            className={`${inputClass} bg-white`}
+            className={inputClass}
           >
             <option value={3}>3 minutos</option>
             <option value={5}>5 minutos</option>
@@ -118,7 +118,7 @@ export function BarbershopSettingsForm({ shop }: { shop: ShopValues }) {
           </select>
         </Field>
       </div>
-      <p className="-mt-2 text-xs text-neutral-500">
+      <p className="-mt-2 text-xs text-ink-secondary">
         Quanto tempo o horário fica guardado enquanto o cliente preenche os dados.
       </p>
 

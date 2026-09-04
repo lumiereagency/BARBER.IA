@@ -17,18 +17,18 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-neutral-900">Configurações</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h1 className="text-xl font-semibold text-ink">Configurações</h1>
+        <p className="mt-1 text-sm text-ink-secondary">
           Dados da barbearia, endereço da página e regras de agendamento.
         </p>
       </header>
 
-      <div className="rounded-xl bg-white p-4">
-        <p className="text-sm font-medium text-neutral-900">Sua página de agendamento</p>
-        <p className="mt-1 break-all text-sm text-neutral-600">
+      <div className="rounded-xl bg-surface-1 p-4">
+        <p className="text-sm font-medium text-ink">Sua página de agendamento</p>
+        <p className="mt-1 break-all text-sm text-ink-secondary">
           {baseUrl}/b/{shop.slug}
         </p>
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-ink-secondary">
           É este link que você divulga para os clientes agendarem.
         </p>
       </div>
@@ -49,7 +49,7 @@ export default async function SettingsPage() {
           }}
         />
       ) : (
-        <p className="rounded-lg bg-neutral-100 p-4 text-sm text-neutral-600">
+        <p className="rounded-lg bg-surface-2 p-4 text-sm text-ink-secondary">
           Só o proprietário e administradores alteram estas configurações.
         </p>
       )}

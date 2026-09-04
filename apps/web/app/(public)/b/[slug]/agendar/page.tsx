@@ -32,9 +32,9 @@ export default async function BookingPage({
     : undefined;
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8">
+    <main className="mx-auto min-h-screen max-w-lg bg-surface-1 px-5 py-8">
       <header className="mb-6">
-        <Link href={`/b/${shop.slug}`} className="text-sm text-neutral-500">
+        <Link href={`/b/${shop.slug}`} className="text-sm text-ink-secondary">
           ← {shop.name}
         </Link>
       </header>

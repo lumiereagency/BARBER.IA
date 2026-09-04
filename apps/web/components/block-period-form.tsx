@@ -18,7 +18,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Bloqueando…" : "Bloquear período"}
     </button>
@@ -35,28 +35,28 @@ export function BlockPeriodForm({
   const [state, formAction] = useFormState(blockPeriod, initialState);
 
   if (professionals.length === 0) {
-    return <p className="text-sm text-neutral-500">Cadastre um profissional primeiro.</p>;
+    return <p className="text-sm text-ink-secondary">Cadastre um profissional primeiro.</p>;
   }
 
   return (
     <form action={formAction} className="space-y-3">
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg bg-error/12 p-3 text-sm text-error">
           {state.error}
         </p>
       ) : null}
       {state.aviso ? (
-        <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+        <p role="status" className="rounded-lg bg-warning/12 p-3 text-sm text-warning">
           {state.aviso}
         </p>
       ) : state.ok ? (
-        <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg bg-success/12 p-3 text-sm text-success">
           Período bloqueado.
         </p>
       ) : null}
 
       <Field label="Profissional">
-        <select name="professionalId" required className={`${inputClass} bg-white`}>
+        <select name="professionalId" required className={inputClass}>
           {professionals.map((professional) => (
             <option key={professional.id} value={professional.id}>
               {professional.name}

@@ -34,12 +34,12 @@ const shortDayLabel = (isoDate: string) =>
   });
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  CONFIRMED: { label: "Confirmado", className: "bg-neutral-100 text-neutral-700" },
-  COMPLETED: { label: "Concluído", className: "bg-emerald-100 text-emerald-800" },
-  NO_SHOW: { label: "Não veio", className: "bg-amber-100 text-amber-800" },
-  CANCELLED_BY_CUSTOMER: { label: "Cancelado pelo cliente", className: "bg-neutral-100 text-neutral-500" },
-  CANCELLED_BY_SHOP: { label: "Cancelado pela barbearia", className: "bg-neutral-100 text-neutral-500" },
-  RESCHEDULED: { label: "Remarcado", className: "bg-neutral-100 text-neutral-500" },
+  CONFIRMED: { label: "Confirmado", className: "bg-surface-2 text-ink" },
+  COMPLETED: { label: "Concluído", className: "bg-success/12 text-success" },
+  NO_SHOW: { label: "Não veio", className: "bg-warning/12 text-warning" },
+  CANCELLED_BY_CUSTOMER: { label: "Cancelado pelo cliente", className: "bg-surface-2 text-ink-secondary" },
+  CANCELLED_BY_SHOP: { label: "Cancelado pela barbearia", className: "bg-surface-2 text-ink-secondary" },
+  RESCHEDULED: { label: "Remarcado", className: "bg-surface-2 text-ink-secondary" },
 };
 
 /// Segunda-feira da semana que contém a data.
@@ -166,22 +166,22 @@ export default async function AgendaPage({
     <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-neutral-900">Agenda</h1>
-          <p className="mt-1 text-sm text-neutral-500 first-letter:uppercase">
+          <h1 className="text-xl font-semibold text-ink">Agenda</h1>
+          <p className="mt-1 text-sm text-ink-secondary first-letter:uppercase">
             {visaoSemanal ? `${shortDayLabel(inicio)} a ${shortDayLabel(fim)}` : dayLabel(dia)}
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1 text-sm">
+        <div className="flex items-center gap-1 rounded-lg border border-line-subtle bg-surface-1 p-1 text-sm">
           <Link
             href={linkPara({ visao: undefined })}
-            className={`rounded px-3 py-1.5 ${!visaoSemanal ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`rounded px-3 py-1.5 ${!visaoSemanal ? "bg-brand-500 text-ink-inverse" : "text-ink-secondary"}`}
           >
             Dia
           </Link>
           <Link
             href={linkPara({ visao: "semana" })}
-            className={`rounded px-3 py-1.5 ${visaoSemanal ? "bg-neutral-900 text-white" : "text-neutral-600"}`}
+            className={`rounded px-3 py-1.5 ${visaoSemanal ? "bg-brand-500 text-ink-inverse" : "text-ink-secondary"}`}
           >
             Semana
           </Link>
@@ -191,20 +191,20 @@ export default async function AgendaPage({
       <nav className="flex items-center justify-between gap-2 text-sm">
         <Link
           href={linkPara({ dia: shiftDate(dia, visaoSemanal ? -7 : -1) })}
-          className="rounded-lg border border-neutral-300 bg-white px-3 py-2"
+          className="rounded-lg border border-line-subtle bg-surface-1 px-3 py-2"
         >
           ← Anterior
         </Link>
         <Link
           href={linkPara({ dia: hoje })}
           aria-label="Ir para hoje na agenda"
-          className="text-neutral-600 underline"
+          className="text-ink-secondary underline"
         >
           Hoje
         </Link>
         <Link
           href={linkPara({ dia: shiftDate(dia, visaoSemanal ? 7 : 1) })}
-          className="rounded-lg border border-neutral-300 bg-white px-3 py-2"
+          className="rounded-lg border border-line-subtle bg-surface-1 px-3 py-2"
         >
           Próximo →
         </Link>
@@ -216,7 +216,7 @@ export default async function AgendaPage({
           <Link
             href={linkPara({ profissional: undefined })}
             className={`rounded-full px-3 py-1.5 ${
-              !searchParams.profissional ? "bg-neutral-900 text-white" : "bg-white text-neutral-700"
+              !searchParams.profissional ? "bg-brand-500 text-ink-inverse" : "bg-surface-1 text-ink"
             }`}
           >
             Equipe toda
@@ -227,8 +227,8 @@ export default async function AgendaPage({
               href={linkPara({ profissional: professional.id })}
               className={`rounded-full px-3 py-1.5 ${
                 searchParams.profissional === professional.id
-                  ? "bg-neutral-900 text-white"
-                  : "bg-white text-neutral-700"
+                  ? "bg-brand-500 text-ink-inverse"
+                  : "bg-surface-1 text-ink"
               }`}
             >
               {professional.displayName}
@@ -238,17 +238,17 @@ export default async function AgendaPage({
       ) : null}
 
       <section className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white p-3">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Atendimentos</p>
-          <p className="mt-1 text-xl font-semibold text-neutral-900">{ativosNoPeriodo.length}</p>
+        <div className="rounded-xl bg-surface-1 p-3">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Atendimentos</p>
+          <p className="mt-1 text-xl font-semibold text-ink">{ativosNoPeriodo.length}</p>
         </div>
-        <div className="rounded-xl bg-white p-3">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Previsto</p>
-          <p className="mt-1 text-base font-semibold text-neutral-900">{money(previsto)}</p>
+        <div className="rounded-xl bg-surface-1 p-3">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Previsto</p>
+          <p className="mt-1 text-base font-semibold text-ink">{money(previsto)}</p>
         </div>
-        <div className="rounded-xl bg-white p-3">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Realizado</p>
-          <p className="mt-1 text-base font-semibold text-neutral-900">{money(realizado)}</p>
+        <div className="rounded-xl bg-surface-1 p-3">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Realizado</p>
+          <p className="mt-1 text-base font-semibold text-ink">{money(realizado)}</p>
         </div>
       </section>
 
@@ -259,16 +259,16 @@ export default async function AgendaPage({
 
         return (
           <section key={data}>
-            <h2 className="mb-2 text-sm font-medium text-neutral-700 first-letter:uppercase">
+            <h2 className="mb-2 text-sm font-medium text-ink first-letter:uppercase">
               {visaoSemanal ? dayLabel(data) : "Atendimentos"}
             </h2>
 
             {bloqueios.map((bloqueio) => (
               <div
                 key={bloqueio.id}
-                className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-3 text-sm"
+                className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-dashed border-line-subtle bg-canvas p-3 text-sm"
               >
-                <span className="text-neutral-600">
+                <span className="text-ink-secondary">
                   {instantToLocalTime(bloqueio.startsAt, shop.timezone)}–
                   {instantToLocalTime(bloqueio.endsAt, shop.timezone)} · bloqueado
                   {bloqueio.reason ? ` · ${bloqueio.reason}` : null}
@@ -276,7 +276,7 @@ export default async function AgendaPage({
                 {podeEscrever ? (
                   <form action={removeBlock}>
                     <input type="hidden" name="id" value={bloqueio.id} />
-                    <button type="submit" className="text-neutral-500 underline">
+                    <button type="submit" className="text-ink-secondary underline">
                       Liberar
                     </button>
                   </form>
@@ -285,7 +285,7 @@ export default async function AgendaPage({
             ))}
 
             {agendamentos.length === 0 && bloqueios.length === 0 ? (
-              <p className="rounded-xl bg-white p-4 text-sm text-neutral-500">
+              <p className="rounded-xl bg-surface-1 p-4 text-sm text-ink-secondary">
                 Nenhum atendimento.
               </p>
             ) : (
@@ -293,7 +293,7 @@ export default async function AgendaPage({
                 {agendamentos.map((appointment) => {
                   const badge = STATUS_BADGE[appointment.status] ?? {
                     label: appointment.status,
-                    className: "bg-neutral-100 text-neutral-700",
+                    className: "bg-surface-2 text-ink",
                   };
                   const encerrado = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_SHOP", "RESCHEDULED"]
                     .includes(appointment.status);
@@ -311,20 +311,20 @@ export default async function AgendaPage({
                   return (
                     <li
                       key={appointment.id}
-                      className={`rounded-xl bg-white p-4 ${encerrado ? "opacity-60" : ""}`}
+                      className={`rounded-xl bg-surface-1 p-4 ${encerrado ? "opacity-60" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium text-neutral-900">
+                          <p className="font-medium text-ink">
                             {instantToLocalTime(appointment.startsAt, shop.timezone)}–
                             {instantToLocalTime(appointment.endsAt, shop.timezone)} ·{" "}
                             {appointment.customerNameSnapshot}
                           </p>
-                          <p className="text-sm text-neutral-500">
+                          <p className="text-sm text-ink-secondary">
                             {appointment.serviceNameSnapshot} com{" "}
                             {appointment.professionalNameSnapshot}
                           </p>
-                          <p className="mt-1 text-sm text-neutral-600">
+                          <p className="mt-1 text-sm text-ink-secondary">
                             {money(appointment.priceSnapshotMinor)}
                             {appointment.source === "MANUAL" ? " · balcão" : null}
                           </p>
@@ -355,11 +355,11 @@ export default async function AgendaPage({
 
       {podeEscrever ? (
         <div className="space-y-4">
-          <details className="rounded-xl border border-neutral-200 bg-white p-4">
-            <summary className="cursor-pointer font-medium text-neutral-900">
+          <details className="rounded-xl border border-line-subtle bg-surface-1 p-4">
+            <summary className="cursor-pointer font-medium text-ink">
               Encaixar atendimento
             </summary>
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-ink-secondary">
               Para quem chegou sem agendar. O horário não precisa estar na grade, mas não pode
               conflitar com outro atendimento do mesmo profissional.
             </p>
@@ -376,11 +376,11 @@ export default async function AgendaPage({
             </div>
           </details>
 
-          <details className="rounded-xl border border-neutral-200 bg-white p-4">
-            <summary className="cursor-pointer font-medium text-neutral-900">
+          <details className="rounded-xl border border-line-subtle bg-surface-1 p-4">
+            <summary className="cursor-pointer font-medium text-ink">
               Bloquear um período
             </summary>
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-ink-secondary">
               Almoço, compromisso pessoal, manutenção. O horário para de ser oferecido na página
               pública.
             </p>

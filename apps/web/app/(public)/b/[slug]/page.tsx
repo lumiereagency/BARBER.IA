@@ -20,11 +20,11 @@ export default async function BarbershopPublicPage({ params }: { params: { slug:
   if (!shop || shop.status === "SUSPENDED") notFound();
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8">
+    <main className="mx-auto min-h-screen max-w-lg bg-surface-1 px-5 py-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900">{shop.name}</h1>
+        <h1 className="text-2xl font-semibold text-ink">{shop.name}</h1>
         {shop.address ? (
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-1 text-sm text-ink-secondary">
             {(shop.address as { district?: string; city?: string }).district}
             {(shop.address as { city?: string }).city
               ? ` · ${(shop.address as { city?: string }).city}`
@@ -34,12 +34,12 @@ export default async function BarbershopPublicPage({ params }: { params: { slug:
       </header>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-secondary">
           Serviços
         </h2>
 
         {shop.services.length === 0 ? (
-          <p className="rounded-lg bg-neutral-50 p-4 text-sm text-neutral-600">
+          <p className="rounded-lg bg-canvas p-4 text-sm text-ink-secondary">
             Esta barbearia ainda não publicou seus serviços.
           </p>
         ) : (
@@ -48,15 +48,15 @@ export default async function BarbershopPublicPage({ params }: { params: { slug:
               <li key={service.id}>
                 <Link
                   href={`/b/${shop.slug}/agendar?servico=${service.id}`}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-neutral-200 p-4 transition hover:border-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="flex items-center justify-between gap-4 rounded-xl border border-line-subtle p-4 transition hover:border-line-strong focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <span>
-                    <span className="block font-medium text-neutral-900">{service.name}</span>
-                    <span className="block text-sm text-neutral-500">
+                    <span className="block font-medium text-ink">{service.name}</span>
+                    <span className="block text-sm text-ink-secondary">
                       {service.durationMinutes} min
                     </span>
                   </span>
-                  <span className="whitespace-nowrap font-medium text-neutral-900">
+                  <span className="whitespace-nowrap font-medium text-ink">
                     {formatPrice(service.priceMinor)}
                   </span>
                 </Link>
@@ -68,14 +68,14 @@ export default async function BarbershopPublicPage({ params }: { params: { slug:
 
       {shop.professionals.length > 0 ? (
         <section className="mt-8">
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-secondary">
             Profissionais
           </h2>
           <ul className="flex flex-wrap gap-2">
             {shop.professionals.map((professional) => (
               <li
                 key={professional.id}
-                className="rounded-full bg-neutral-100 px-3 py-1 text-sm text-neutral-700"
+                className="rounded-full bg-surface-2 px-3 py-1 text-sm text-ink"
               >
                 {professional.displayName}
               </li>

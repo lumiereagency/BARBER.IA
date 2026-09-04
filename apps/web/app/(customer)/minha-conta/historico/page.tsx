@@ -42,44 +42,44 @@ export default async function CustomerHistoryPage() {
   });
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8">
+    <main className="mx-auto min-h-screen max-w-lg bg-surface-1 px-5 py-8">
       <header className="mb-6">
-        <Link href="/minha-conta" className="text-sm text-neutral-500">
+        <Link href="/minha-conta" className="text-sm text-ink-secondary">
           ← Meus agendamentos
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-neutral-900">Histórico</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-ink">Histórico</h1>
       </header>
 
       {/* O resumo por barbearia sai do CRM automático. Onde o dado não existe,
           a tela não mostra número inventado — simplesmente não mostra. */}
       {relations.map((relation) => (
-        <section key={relation.id} className="mb-6 rounded-xl bg-neutral-50 p-4">
-          <p className="font-medium text-neutral-900">{relation.barbershop.name}</p>
+        <section key={relation.id} className="mb-6 rounded-xl bg-canvas p-4">
+          <p className="font-medium text-ink">{relation.barbershop.name}</p>
           <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
             <div>
-              <dt className="text-neutral-500">Atendimentos</dt>
-              <dd className="font-medium text-neutral-900">{relation.completedVisitsCount}</dd>
+              <dt className="text-ink-secondary">Atendimentos</dt>
+              <dd className="font-medium text-ink">{relation.completedVisitsCount}</dd>
             </div>
             {relation.averageTicketMinor !== null ? (
               <div>
-                <dt className="text-neutral-500">Ticket médio</dt>
-                <dd className="font-medium text-neutral-900">
+                <dt className="text-ink-secondary">Ticket médio</dt>
+                <dd className="font-medium text-ink">
                   {money(relation.averageTicketMinor)}
                 </dd>
               </div>
             ) : null}
             {relation.preferredProfessional ? (
               <div>
-                <dt className="text-neutral-500">Costuma cortar com</dt>
-                <dd className="font-medium text-neutral-900">
+                <dt className="text-ink-secondary">Costuma cortar com</dt>
+                <dd className="font-medium text-ink">
                   {relation.preferredProfessional.displayName}
                 </dd>
               </div>
             ) : null}
             {relation.preferredService ? (
               <div>
-                <dt className="text-neutral-500">Serviço mais pedido</dt>
-                <dd className="font-medium text-neutral-900">
+                <dt className="text-ink-secondary">Serviço mais pedido</dt>
+                <dd className="font-medium text-ink">
                   {relation.preferredService.name}
                 </dd>
               </div>
@@ -92,7 +92,7 @@ export default async function CustomerHistoryPage() {
                 ? `/b/${relation.barbershop.slug}/agendar?servico=${relation.preferredServiceId}`
                 : `/b/${relation.barbershop.slug}`
             }
-            className="mt-3 inline-block rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white"
+            className="mt-3 inline-block rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse"
           >
             Agendar de novo
           </Link>
@@ -100,12 +100,12 @@ export default async function CustomerHistoryPage() {
       ))}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-secondary">
           Atendimentos
         </h2>
 
         {appointments.length === 0 ? (
-          <p className="rounded-xl bg-neutral-50 p-5 text-sm text-neutral-600">
+          <p className="rounded-xl bg-canvas p-5 text-sm text-ink-secondary">
             Você ainda não tem atendimentos anteriores por aqui.
           </p>
         ) : (
@@ -113,27 +113,27 @@ export default async function CustomerHistoryPage() {
             {appointments.map((appointment) => (
               <li
                 key={appointment.id}
-                className="flex items-start justify-between gap-3 rounded-xl border border-neutral-200 p-4"
+                className="flex items-start justify-between gap-3 rounded-xl border border-line-subtle p-4"
               >
                 <div>
-                  <p className="font-medium text-neutral-900">
+                  <p className="font-medium text-ink">
                     {instantToLocalDate(appointment.startsAt, appointment.barbershop.timezone)
                       .split("-")
                       .reverse()
                       .join("/")}{" "}
                     às {instantToLocalTime(appointment.startsAt, appointment.barbershop.timezone)}
                   </p>
-                  <p className="text-sm text-neutral-600">
+                  <p className="text-sm text-ink-secondary">
                     {appointment.serviceNameSnapshot} com {appointment.professionalNameSnapshot}
                   </p>
-                  <p className="text-xs text-neutral-500">{appointment.barbershop.name}</p>
+                  <p className="text-xs text-ink-secondary">{appointment.barbershop.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-ink-secondary">
                     {STATUS_LABEL[appointment.status] ?? appointment.status}
                   </p>
                   {appointment.status === "COMPLETED" ? (
-                    <p className="text-sm text-neutral-700">
+                    <p className="text-sm text-ink">
                       {money(appointment.priceSnapshotMinor)}
                     </p>
                   ) : null}

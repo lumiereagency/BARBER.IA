@@ -1,8 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  CalendarDays,
+  House,
+  LogOut,
+  Settings,
+  Link as LinkIcon,
+  Scissors,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { can } from "@barber/domain";
 import { getSession } from "@/lib/auth";
 import { signOut } from "../(auth)/actions";
+import { BrandMark } from "@/components/brand-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -13,53 +25,61 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getSession();
   if (!session) redirect("/entrar");
 
-  const nav = [
-    { href: "/hoje", label: "Hoje", permission: "appointments.read.own" as const },
-    { href: "/agenda", label: "Agenda", permission: "appointments.read.own" as const },
+  const nav: Array<{ href: string; label: string; icon: LucideIcon; permission: Parameters<typeof can>[1] }> = [
+    { href: "/hoje", label: "Hoje", icon: House, permission: "appointments.read.own" as const },
+    { href: "/agenda", label: "Agenda", icon: CalendarDays, permission: "appointments.read.own" as const },
     // "Clientes" volta quando a tela de CRM da equipe existir. Um item de menu
     // que leva a lugar nenhum não é só um 404: o Next faz prefetch dele em toda
     // página do painel, e a requisição pendente atrasa a navegação inteira.
-    { href: "/equipe", label: "Equipe", permission: "professionals.read" as const },
-    { href: "/gestao/servicos", label: "Serviços", permission: "services.read" as const },
-    {
-      href: "/gestao/integracoes",
-      label: "Integrações",
-      permission: "integrations.read" as const,
-    },
+    { href: "/equipe", label: "Equipe", icon: Users, permission: "professionals.read" as const },
+    { href: "/gestao/servicos", label: "Serviços", icon: Scissors, permission: "services.read" as const },
+    { href: "/gestao/integracoes", label: "Integrações", icon: LinkIcon, permission: "integrations.read" as const },
     {
       href: "/gestao/configuracoes",
       label: "Configurações",
+      icon: Settings,
       permission: "barbershop.settings.read" as const,
     },
   ].filter((item) => can(session.membership, item.permission));
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
-          <div>
-            <p className="text-sm font-medium text-neutral-900">{session.barbershopName}</p>
-            <p className="text-xs text-neutral-500">{session.userName}</p>
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b border-line-subtle bg-surface-1">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 px-5 py-4">
+          <BrandMark className="h-6 w-6 shrink-0 text-brand-500" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-ink">{session.barbershopName}</p>
+            <p className="truncate text-xs text-ink-secondary">{session.userName}</p>
           </div>
+          <ThemeToggle />
           <form action={signOut}>
-            <button type="submit" className="text-sm text-neutral-500 underline">
-              Sair
+            <button
+              type="submit"
+              aria-label="Sair"
+              title="Sair"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-secondary hover:bg-surface-2 hover:text-ink"
+            >
+              <LogOut size={17} strokeWidth={1.9} />
             </button>
           </form>
         </div>
 
         <nav className="mx-auto max-w-3xl overflow-x-auto px-5">
-          <ul className="flex gap-4 pb-3">
-            {nav.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="whitespace-nowrap text-sm text-neutral-600 hover:text-neutral-900"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
+          <ul className="flex gap-1 pb-3">
+            {nav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm text-ink-secondary hover:bg-surface-2 hover:text-ink"
+                  >
+                    <Icon size={16} strokeWidth={1.9} />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       </header>

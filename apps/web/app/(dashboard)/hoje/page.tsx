@@ -60,8 +60,8 @@ export default async function TodayPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-neutral-900">Hoje</h1>
-        <p className="mt-1 text-sm text-neutral-500 first-letter:uppercase">
+        <h1 className="text-xl font-semibold text-ink">Hoje</h1>
+        <p className="mt-1 text-sm text-ink-secondary first-letter:uppercase">
           {new Date(`${today}T12:00:00Z`).toLocaleDateString("pt-BR", {
             weekday: "long",
             day: "numeric",
@@ -71,9 +71,9 @@ export default async function TodayPage() {
       </header>
 
       {configuracaoPendente ? (
-        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="font-medium text-amber-900">Sua página ainda não recebe agendamentos</p>
-          <ul className="mt-2 space-y-1 text-sm text-amber-900">
+        <section className="rounded-xl border border-warning/35 bg-warning/12 p-4">
+          <p className="font-medium text-warning">Sua página ainda não recebe agendamentos</p>
+          <ul className="mt-2 space-y-1 text-sm text-warning">
             {servicesCount === 0 ? (
               <li>
                 •{" "}
@@ -95,43 +95,43 @@ export default async function TodayPage() {
       ) : null}
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Agendamentos</p>
-          <p className="mt-1 text-2xl font-semibold text-neutral-900">{appointments.length}</p>
+        <div className="rounded-xl bg-surface-1 p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Agendamentos</p>
+          <p className="mt-1 text-2xl font-semibold text-ink">{appointments.length}</p>
         </div>
-        <div className="rounded-xl bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Concluídos</p>
-          <p className="mt-1 text-2xl font-semibold text-neutral-900">{concluidos.length}</p>
+        <div className="rounded-xl bg-surface-1 p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Concluídos</p>
+          <p className="mt-1 text-2xl font-semibold text-ink">{concluidos.length}</p>
         </div>
-        <div className="rounded-xl bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Previsto</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">{money(previsto)}</p>
+        <div className="rounded-xl bg-surface-1 p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Previsto</p>
+          <p className="mt-1 text-lg font-semibold text-ink">{money(previsto)}</p>
         </div>
-        <div className="rounded-xl bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Realizado</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">{money(realizado)}</p>
+        <div className="rounded-xl bg-surface-1 p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Realizado</p>
+          <p className="mt-1 text-lg font-semibold text-ink">{money(realizado)}</p>
         </div>
       </section>
 
       {proximo ? (
-        <section className="rounded-xl border border-neutral-900 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Próximo cliente</p>
-          <p className="mt-1 text-lg font-semibold text-neutral-900">
+        <section className="rounded-xl border border-line-strong bg-surface-1 p-4">
+          <p className="text-xs uppercase tracking-wide text-ink-secondary">Próximo cliente</p>
+          <p className="mt-1 text-lg font-semibold text-ink">
             {instantToLocalTime(proximo.startsAt, shop.timezone)} · {proximo.customerNameSnapshot}
           </p>
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-ink-secondary">
             {proximo.serviceNameSnapshot} com {proximo.professionalNameSnapshot}
           </p>
         </section>
       ) : null}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-secondary">
           Agenda do dia
         </h2>
 
         {appointments.length === 0 ? (
-          <p className="rounded-xl bg-white p-6 text-center text-sm text-neutral-500">
+          <p className="rounded-xl bg-surface-1 p-6 text-center text-sm text-ink-secondary">
             Nenhum agendamento para hoje.
           </p>
         ) : (
@@ -139,18 +139,18 @@ export default async function TodayPage() {
             {appointments.map((appointment) => (
               <li
                 key={appointment.id}
-                className="flex items-center justify-between gap-4 rounded-xl bg-white p-4"
+                className="flex items-center justify-between gap-4 rounded-xl bg-surface-1 p-4"
               >
                 <div>
-                  <p className="font-medium text-neutral-900">
+                  <p className="font-medium text-ink">
                     {instantToLocalTime(appointment.startsAt, shop.timezone)} ·{" "}
                     {appointment.customerNameSnapshot}
                   </p>
-                  <p className="text-sm text-neutral-500">
+                  <p className="text-sm text-ink-secondary">
                     {appointment.serviceNameSnapshot} com {appointment.professionalNameSnapshot}
                   </p>
                 </div>
-                <span className="whitespace-nowrap text-sm text-neutral-600">
+                <span className="whitespace-nowrap text-sm text-ink-secondary">
                   {money(appointment.priceSnapshotMinor)}
                 </span>
               </li>

@@ -23,7 +23,7 @@ function Submit({ isNew }: { isNew: boolean }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Salvando…" : isNew ? "Adicionar serviço" : "Salvar"}
     </button>
@@ -38,7 +38,7 @@ export function ServiceForm({ service }: { service?: ServiceValues }) {
       {service ? <input type="hidden" name="id" value={service.id} /> : null}
 
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg bg-error/12 p-3 text-sm text-error">
           {state.error}
         </p>
       ) : null}
@@ -99,7 +99,7 @@ export function ServiceForm({ service }: { service?: ServiceValues }) {
           />
         </Field>
       </div>
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-ink-secondary">
         O tempo de preparo e limpeza fica reservado na agenda, mas não aparece para o cliente.
       </p>
 

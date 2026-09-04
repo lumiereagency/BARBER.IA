@@ -19,7 +19,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Salvando…" : "Salvar horários"}
     </button>
@@ -44,7 +44,7 @@ export function WorkingHoursForm({
           const atual = byWeekday.get(dia.weekday);
           return (
             <li key={dia.weekday} className="flex items-center gap-3">
-              <label className="flex w-28 items-center gap-2 text-sm text-neutral-700">
+              <label className="flex w-28 items-center gap-2 text-sm text-ink">
                 <input
                   type="checkbox"
                   name={`day-${dia.weekday}`}
@@ -57,15 +57,15 @@ export function WorkingHoursForm({
                 type="time"
                 name={`start-${dia.weekday}`}
                 defaultValue={atual?.startLocalTime ?? "09:00"}
-                className="rounded-lg border border-neutral-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-line-subtle px-2 py-2 text-sm"
                 aria-label={`${dia.label}: abre`}
               />
-              <span className="text-neutral-400">até</span>
+              <span className="text-ink-muted">até</span>
               <input
                 type="time"
                 name={`end-${dia.weekday}`}
                 defaultValue={atual?.endLocalTime ?? "18:00"}
-                className="rounded-lg border border-neutral-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-line-subtle px-2 py-2 text-sm"
                 aria-label={`${dia.label}: fecha`}
               />
             </li>
@@ -73,7 +73,7 @@ export function WorkingHoursForm({
         })}
       </ul>
 
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-ink-secondary">
         Estes são os horários em que este profissional atende. A agenda pública é montada a
         partir daqui.
       </p>

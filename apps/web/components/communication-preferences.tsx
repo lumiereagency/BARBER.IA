@@ -16,7 +16,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium disabled:opacity-50"
+      className="rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium disabled:opacity-50"
     >
       {pending ? "Salvando…" : "Salvar"}
     </button>
@@ -35,10 +35,10 @@ export function CommunicationPreferences({
   return (
     <form
       action={updateCommunicationPreferences}
-      className="rounded-xl border border-neutral-200 p-4"
+      className="rounded-xl border border-line-subtle p-4"
     >
       <input type="hidden" name="relationId" value={relationId} />
-      <p className="mb-3 font-medium text-neutral-900">{barbershopName}</p>
+      <p className="mb-3 font-medium text-ink">{barbershopName}</p>
 
       <div className="space-y-2">
         {CANAIS.map((canal) => (

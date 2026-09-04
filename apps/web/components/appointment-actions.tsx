@@ -19,9 +19,9 @@ function ActionButton({
 }) {
   const { pending } = useFormStatus();
   const classes = {
-    default: "border border-neutral-300 text-neutral-800",
-    primary: "bg-neutral-900 text-white",
-    danger: "bg-red-600 text-white",
+    default: "border border-line-subtle text-ink",
+    primary: "bg-brand-500 text-ink-inverse",
+    danger: "bg-error text-ink-inverse",
   }[variant];
 
   return (
@@ -51,8 +51,8 @@ export function AppointmentActions({
 
   if (confirmandoCancelamento) {
     return (
-      <div className="mt-3 rounded-lg border border-red-200 p-3">
-        <p className="text-sm text-neutral-900">
+      <div className="mt-3 rounded-lg border border-error/35 p-3">
+        <p className="text-sm text-ink">
           Cancelar este atendimento? O horário volta a ficar disponível.
         </p>
         <div className="mt-3 flex gap-2">
@@ -63,7 +63,7 @@ export function AppointmentActions({
           <button
             type="button"
             onClick={() => setConfirmandoCancelamento(false)}
-            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium"
+            className="rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium"
           >
             Manter
           </button>
@@ -87,7 +87,7 @@ export function AppointmentActions({
           <button
             type="button"
             onClick={() => setConfirmandoCancelamento(true)}
-            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-800"
+            className="rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium text-ink"
           >
             Cancelar
           </button>
@@ -104,7 +104,7 @@ export function AppointmentActions({
         href={confirmUrl}
         target="_blank"
         rel="noreferrer"
-        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-800"
+        className="rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium text-ink"
       >
         Confirmar no WhatsApp
       </a>
@@ -113,7 +113,7 @@ export function AppointmentActions({
           href={lateUrl}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-800"
+          className="rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium text-ink"
         >
           Cliente atrasado
         </a>

@@ -23,27 +23,27 @@ export default async function CustomerPreferencesPage() {
   });
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8">
+    <main className="mx-auto min-h-screen max-w-lg bg-surface-1 px-5 py-8">
       <header className="mb-6">
-        <Link href="/minha-conta" className="text-sm text-neutral-500">
+        <Link href="/minha-conta" className="text-sm text-ink-secondary">
           ← Meus agendamentos
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-neutral-900">
+        <h1 className="mt-2 text-2xl font-semibold text-ink">
           Preferências e privacidade
         </h1>
       </header>
 
       <section>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-ink-secondary">
           Promoções
         </h2>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-ink-secondary">
           Cada barbearia é separada: aceitar em uma não vale para as outras. Avisos sobre seus
           próprios horários continuam chegando, independentemente disso.
         </p>
 
         {relations.length === 0 ? (
-          <p className="mt-4 rounded-lg bg-neutral-50 p-4 text-sm text-neutral-600">
+          <p className="mt-4 rounded-lg bg-canvas p-4 text-sm text-ink-secondary">
             Você ainda não tem relação com nenhuma barbearia por aqui.
           </p>
         ) : (
@@ -60,11 +60,11 @@ export default async function CustomerPreferencesPage() {
         )}
       </section>
 
-      <section className="mt-10 border-t border-neutral-200 pt-6">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+      <section className="mt-10 border-t border-line-subtle pt-6">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-ink-secondary">
           Encerrar conta
         </h2>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-ink-secondary">
           Seus dados pessoais são removidos. Cada barbearia mantém o registro dos atendimentos
           que realizou, sem identificar você.
         </p>

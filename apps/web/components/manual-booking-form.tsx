@@ -18,7 +18,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Encaixando…" : "Confirmar encaixe"}
     </button>
@@ -38,7 +38,7 @@ export function ManualBookingForm({
 
   if (professionals.length === 0 || services.length === 0) {
     return (
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-ink-secondary">
         Cadastre ao menos um profissional e um serviço para encaixar atendimentos.
       </p>
     );
@@ -47,19 +47,19 @@ export function ManualBookingForm({
   return (
     <form action={formAction} className="space-y-3">
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg bg-error/12 p-3 text-sm text-error">
           {state.error}
         </p>
       ) : null}
       {state.ok ? (
-        <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg bg-success/12 p-3 text-sm text-success">
           Atendimento encaixado.
         </p>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Profissional">
-          <select name="professionalId" required className={`${inputClass} bg-white`}>
+          <select name="professionalId" required className={inputClass}>
             {professionals.map((professional) => (
               <option key={professional.id} value={professional.id}>
                 {professional.name}
@@ -69,7 +69,7 @@ export function ManualBookingForm({
         </Field>
 
         <Field label="Serviço">
-          <select name="serviceId" required className={`${inputClass} bg-white`}>
+          <select name="serviceId" required className={inputClass}>
             {services.map((service) => (
               <option key={service.id} value={service.id}>
                 {service.name} ({service.durationMinutes} min)

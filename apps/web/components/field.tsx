@@ -16,9 +16,9 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-neutral-900">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-ink">{label}</span>
       {children}
-      {hint ? <span className="mt-1 block text-xs text-neutral-500">{hint}</span> : null}
+      {hint ? <span className="mt-1 block text-xs text-ink-secondary">{hint}</span> : null}
     </label>
   );
 }
@@ -38,7 +38,7 @@ export function CheckboxField({
   value?: string;
 }) {
   return (
-    <label className="flex items-start gap-3 text-sm text-neutral-700">
+    <label className="flex items-start gap-3 text-sm text-ink">
       <input
         type="checkbox"
         name={name}
@@ -52,4 +52,5 @@ export function CheckboxField({
   );
 }
 
-export const inputClass = "w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-base";
+export const inputClass =
+  "w-full rounded-xl border border-line-subtle bg-surface-2 px-3 py-2.5 text-base text-ink placeholder:text-ink-muted focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25";

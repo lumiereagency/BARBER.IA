@@ -21,7 +21,7 @@ function Submit({ isNew }: { isNew: boolean }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      className="rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-ink-inverse disabled:opacity-50"
     >
       {pending ? "Salvando…" : isNew ? "Adicionar profissional" : "Salvar"}
     </button>
@@ -36,7 +36,7 @@ export function ProfessionalForm({ professional }: { professional?: Professional
       {professional ? <input type="hidden" name="id" value={professional.id} /> : null}
 
       {state.error ? (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-900">
+        <p role="alert" className="rounded-lg bg-error/12 p-3 text-sm text-error">
           {state.error}
         </p>
       ) : null}

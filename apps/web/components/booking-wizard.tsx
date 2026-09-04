@@ -229,13 +229,13 @@ export function BookingWizard({
 
   if (step === "sucesso" && confirmation) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-xl bg-emerald-50 p-5">
-          <h2 className="text-lg font-semibold text-emerald-900">Horário reservado!</h2>
-          <p className="mt-2 text-emerald-900">
+      <div className="animate-celebrate space-y-6">
+        <div className="rounded-xl bg-success/12 p-5">
+          <h2 className="text-lg font-semibold text-success">Horário reservado!</h2>
+          <p className="mt-2 text-success">
             {confirmation.appointment.serviceName} com {confirmation.appointment.professionalName}
           </p>
-          <p className="text-emerald-900">
+          <p className="text-success">
             {formatDayLabel(confirmation.appointment.localDate)}, {confirmation.appointment.localTime}
           </p>
         </div>
@@ -243,7 +243,7 @@ export function BookingWizard({
         <div className="space-y-3">
           <a
             href={confirmation.manageUrl}
-            className="block rounded-lg bg-neutral-900 px-4 py-3 text-center font-medium text-white"
+            className="block rounded-lg bg-brand-500 px-4 py-3 text-center font-medium text-ink-inverse"
           >
             Gerenciar meu agendamento
           </a>
@@ -252,7 +252,7 @@ export function BookingWizard({
               href={confirmation.calendarUrl}
               target="_blank"
               rel="noreferrer"
-              className="block rounded-lg border border-neutral-300 px-4 py-3 text-center font-medium text-neutral-900"
+              className="block rounded-lg border border-line-subtle px-4 py-3 text-center font-medium text-ink"
             >
               Adicionar ao calendário
             </a>
@@ -262,7 +262,7 @@ export function BookingWizard({
               href={confirmation.whatsappShareUrl}
               target="_blank"
               rel="noreferrer"
-              className="block rounded-lg border border-neutral-300 px-4 py-3 text-center font-medium text-neutral-900"
+              className="block rounded-lg border border-line-subtle px-4 py-3 text-center font-medium text-ink"
             >
               Enviar confirmação no WhatsApp
             </a>
@@ -271,21 +271,21 @@ export function BookingWizard({
 
         {/* Convite de conta (Parte 1 §10): vem DEPOIS do valor entregue,
             nunca como requisito para agendar. */}
-        <div className="rounded-xl border border-neutral-200 p-5 text-center">
-          <p className="font-medium text-neutral-900">Fique conectado com sua barbearia</p>
-          <p className="mt-1 text-sm text-neutral-600">
+        <div className="rounded-xl border border-line-subtle p-5 text-center">
+          <p className="font-medium text-ink">Fique conectado com sua barbearia</p>
+          <p className="mt-1 text-sm text-ink-secondary">
             Crie sua conta gratuitamente para acompanhar seus horários, marcar de novo com
             poucos toques e receber promoções em primeira mão.
           </p>
           <a
             href="/entrar-cliente"
-            className="mt-3 inline-block rounded-lg border border-neutral-900 px-4 py-2.5 text-sm font-medium text-neutral-900"
+            className="mt-3 inline-block rounded-lg border border-line-strong px-4 py-2.5 text-sm font-medium text-ink"
           >
             Criar minha conta
           </a>
         </div>
 
-        <p className="text-center text-sm text-neutral-500">
+        <p className="text-center text-sm text-ink-secondary">
           Guarde o link de gerenciamento: é por ele que você cancela ou remarca.
         </p>
       </div>
@@ -295,21 +295,21 @@ export function BookingWizard({
   return (
     <div className="space-y-6">
       {message ? (
-        <p role="status" className="rounded-lg bg-amber-50 p-4 text-sm text-amber-900">
+        <p role="status" className="rounded-lg bg-warning/12 p-4 text-sm text-warning">
           {message}
         </p>
       ) : null}
 
       {alternatives.length > 0 ? (
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <p className="mb-3 text-sm font-medium text-neutral-900">Horários próximos:</p>
+        <div className="rounded-lg border border-line-subtle p-4">
+          <p className="mb-3 text-sm font-medium text-ink">Horários próximos:</p>
           <div className="flex flex-wrap gap-2">
             {alternatives.map((slot) => (
               <button
                 key={slot.startsAt}
                 type="button"
                 onClick={() => void selectSlot(slot)}
-                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                className="rounded-lg border border-line-subtle px-3 py-2 text-sm"
               >
                 {formatTime(slot.startsAt, timezone)}
               </button>
@@ -320,7 +320,7 @@ export function BookingWizard({
 
       {step === "servico" ? (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-neutral-900">Escolha o serviço</h2>
+          <h2 className="mb-4 text-lg font-semibold text-ink">Escolha o serviço</h2>
           <ul className="space-y-3">
             {services.map((item) => (
               <li key={item.id}>
@@ -330,11 +330,11 @@ export function BookingWizard({
                     setServiceId(item.id);
                     setStep("profissional");
                   }}
-                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-neutral-200 p-4 text-left"
+                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-line-subtle p-4 text-left"
                 >
                   <span>
-                    <span className="block font-medium text-neutral-900">{item.name}</span>
-                    <span className="block text-sm text-neutral-500">{item.durationMinutes} min</span>
+                    <span className="block font-medium text-ink">{item.name}</span>
+                    <span className="block text-sm text-ink-secondary">{item.durationMinutes} min</span>
                   </span>
                   <span className="font-medium">{formatPrice(item.priceMinor)}</span>
                 </button>
@@ -346,7 +346,7 @@ export function BookingWizard({
 
       {step === "profissional" ? (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-neutral-900">Com quem você quer cortar?</h2>
+          <h2 className="mb-4 text-lg font-semibold text-ink">Com quem você quer cortar?</h2>
           <div className="space-y-3">
             <button
               type="button"
@@ -354,10 +354,10 @@ export function BookingWizard({
                 setProfessionalId(null);
                 setStep("horario");
               }}
-              className="w-full rounded-xl border border-neutral-200 p-4 text-left font-medium"
+              className="w-full rounded-xl border border-line-subtle p-4 text-left font-medium"
             >
               Qualquer profissional
-              <span className="block text-sm font-normal text-neutral-500">
+              <span className="block text-sm font-normal text-ink-secondary">
                 Mostra todos os horários livres
               </span>
             </button>
@@ -369,7 +369,7 @@ export function BookingWizard({
                   setProfessionalId(item.id);
                   setStep("horario");
                 }}
-                className="w-full rounded-xl border border-neutral-200 p-4 text-left font-medium"
+                className="w-full rounded-xl border border-line-subtle p-4 text-left font-medium"
               >
                 {item.displayName}
               </button>
@@ -380,13 +380,13 @@ export function BookingWizard({
 
       {step === "horario" ? (
         <section>
-          <h2 className="mb-4 text-lg font-semibold text-neutral-900">Escolha o horário</h2>
+          <h2 className="mb-4 text-lg font-semibold text-ink">Escolha o horário</h2>
 
           {loadingSlots ? (
-            <p className="text-sm text-neutral-500">Carregando horários…</p>
+            <p className="text-sm text-ink-secondary">Carregando horários…</p>
           ) : days.length === 0 ? (
-            <div className="rounded-lg bg-neutral-50 p-4">
-              <p className="text-sm text-neutral-700">
+            <div className="rounded-lg bg-canvas p-4">
+              <p className="text-sm text-ink">
                 Não há horários livres nos próximos dias.
               </p>
               <button
@@ -401,7 +401,7 @@ export function BookingWizard({
             <div className="space-y-6">
               {days.map((day) => (
                 <div key={day.date}>
-                  <h3 className="mb-2 text-sm font-medium text-neutral-700 first-letter:uppercase">
+                  <h3 className="mb-2 text-sm font-medium text-ink first-letter:uppercase">
                     {formatDayLabel(day.date)}
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -411,11 +411,11 @@ export function BookingWizard({
                         type="button"
                         disabled={submitting}
                         onClick={() => void selectSlot(slot)}
-                        className="min-w-[76px] rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium disabled:opacity-50"
+                        className="min-w-[76px] rounded-lg border border-line-subtle px-3 py-2 text-sm font-medium disabled:opacity-50"
                       >
                         {formatTime(slot.startsAt, timezone)}
                         {!professionalId ? (
-                          <span className="block text-xs font-normal text-neutral-500">
+                          <span className="block text-xs font-normal text-ink-secondary">
                             {slot.professionalName}
                           </span>
                         ) : null}
@@ -431,16 +431,16 @@ export function BookingWizard({
 
       {step === "dados" && hold ? (
         <section>
-          <div className="mb-4 rounded-lg bg-neutral-50 p-4">
-            <p className="font-medium text-neutral-900">
+          <div className="mb-4 rounded-lg bg-canvas p-4">
+            <p className="font-medium text-ink">
               {service?.name} com {hold.slot.professionalName}
             </p>
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-ink-secondary">
               {formatTime(hold.slot.startsAt, timezone)} · {formatPrice(hold.slot.priceMinor)}
             </p>
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-ink-secondary">
               Guardamos este horário por mais{" "}
-              <strong className="tabular-nums text-neutral-900">
+              <strong className="tabular-nums text-ink">
                 {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
               </strong>
             </p>
@@ -448,7 +448,7 @@ export function BookingWizard({
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label htmlFor="nome" className="mb-1 block text-sm font-medium text-neutral-900">
+              <label htmlFor="nome" className="mb-1 block text-sm font-medium text-ink">
                 Seu nome
               </label>
               <input
@@ -457,13 +457,13 @@ export function BookingWizard({
                 minLength={2}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-3 text-base"
+                className="w-full rounded-lg border border-line-subtle px-3 py-3 text-base"
                 autoComplete="name"
               />
             </div>
 
             <div>
-              <label htmlFor="telefone" className="mb-1 block text-sm font-medium text-neutral-900">
+              <label htmlFor="telefone" className="mb-1 block text-sm font-medium text-ink">
                 WhatsApp
               </label>
               <input
@@ -473,12 +473,12 @@ export function BookingWizard({
                 placeholder="(11) 99999-0000"
                 value={phone}
                 onChange={(event) => setPhone(event.target.value)}
-                className="w-full rounded-lg border border-neutral-300 px-3 py-3 text-base"
+                className="w-full rounded-lg border border-line-subtle px-3 py-3 text-base"
                 autoComplete="tel"
               />
             </div>
 
-            <label className="flex items-start gap-3 text-sm text-neutral-700">
+            <label className="flex items-start gap-3 text-sm text-ink">
               <input
                 type="checkbox"
                 required
@@ -491,7 +491,7 @@ export function BookingWizard({
 
             {/* Promoção é escolha separada do aceite obrigatório: consentimento
                 de marketing nunca é inferido do agendamento (Parte 2 §5.3). */}
-            <label className="flex items-start gap-3 text-sm text-neutral-700">
+            <label className="flex items-start gap-3 text-sm text-ink">
               <input
                 type="checkbox"
                 checked={wantsPromotions}
@@ -504,7 +504,7 @@ export function BookingWizard({
             <button
               type="submit"
               disabled={submitting || secondsLeft === 0}
-              className="w-full rounded-lg bg-neutral-900 px-4 py-3 font-medium text-white disabled:opacity-50"
+              className="w-full rounded-lg bg-brand-500 px-4 py-3 font-medium text-ink-inverse disabled:opacity-50"
             >
               {submitting ? "Confirmando…" : "Confirmar agendamento"}
             </button>

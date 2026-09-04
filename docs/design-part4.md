@@ -366,3 +366,38 @@ Com as cinco decisões resolvidas — símbolo incluído, já vetorizado e aplic
 ao favicon real — nada mais bloqueia o início do próximo marco visual: tokens,
 componentes, tema claro/escuro e site institucional podem avançar. A única
 verificação pendente é a grafia do nome (Cutlist vs. CUTLIST, P1 acima).
+
+---
+
+## 10. Retema — implementado em 2026-09-04
+
+Por pedido explícito, **o site institucional (item G1) ficou de fora desta
+passada** — entra depois, como trabalho próprio. Tudo o mais do retema foi
+construído e validado:
+
+- **Tokens**: `apps/web/tailwind.config.ts` lê as cores da seção 3 como
+  variáveis CSS (`apps/web/app/globals.css`), `dark` na raiz (identidade
+  principal) e `[data-theme="light"]` como sobreposição — decisão P3.
+  `<ThemeToggle>` alterna e persiste em `localStorage`; um script inline no
+  `<head>` aplica a preferência salva antes da primeira pintura, para não
+  haver flash de tema errado.
+- **Retema mecânico**: as ~475 classes Tailwind ad-hoc (`neutral-*`,
+  `bg-white`, `text-red-900` etc.) das 31 telas e componentes existentes
+  foram remapeadas para os tokens semânticos (`bg-canvas`, `text-ink`,
+  `border-line-subtle`, `bg-error/12` etc.), com uma tabela de conversão
+  única verificada por grep antes de aplicar — sem sobra de classe antiga.
+- **Manrope** via `next/font`, aplicada globalmente.
+- **Ícones**: `lucide-react` na navegação do painel (§12: traço 1.75–2px).
+- **Motion**: `framer-motion` no ThemeToggle (crossfade sol/lua) e uma
+  animação de celebração (`.animate-celebrate`, CSS puro, ≤700ms) na tela de
+  sucesso da reserva pública — os dois respeitam `prefers-reduced-motion`.
+- **Símbolo aplicado**: `<BrandMark>` no cabeçalho do painel e nas telas de
+  entrar/criar-conta, com brilho ambiental sutil (§7) nessas duas.
+- Validado nos dois temas: typecheck, build, 76+17+100+20 testes de
+  unidade/integração/garantia, e os 60 testes de navegador — todos verdes
+  contra o build retemado.
+
+Pendências que continuam abertas (não bloqueiam o que já foi entregue):
+site institucional (G1, adiado), tela Clientes (G2), componentes do §22 ainda
+sem versão própria (drawer, dialog, command palette, table — hoje as telas
+usam `<details>`/página cheia), fotografia real (P4).

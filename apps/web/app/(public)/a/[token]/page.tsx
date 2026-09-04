@@ -46,26 +46,26 @@ export default async function ManageAppointmentPage({ params }: { params: { toke
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white px-5 py-8">
+    <main className="mx-auto min-h-screen max-w-lg bg-surface-1 px-5 py-8">
       <header className="mb-6">
-        <p className="text-sm text-neutral-500">{shop.name}</p>
-        <h1 className="mt-1 text-2xl font-semibold text-neutral-900">Seu agendamento</h1>
+        <p className="text-sm text-ink-secondary">{shop.name}</p>
+        <h1 className="mt-1 text-2xl font-semibold text-ink">Seu agendamento</h1>
       </header>
 
       <section
-        className={`rounded-xl p-5 ${active ? "bg-emerald-50" : "bg-neutral-100"}`}
+        className={`rounded-xl p-5 ${active ? "bg-success/12" : "bg-surface-2"}`}
       >
-        <p className="text-sm font-medium uppercase tracking-wide text-neutral-600">
+        <p className="text-sm font-medium uppercase tracking-wide text-ink-secondary">
           {STATUS_LABEL[appointment.status] ?? appointment.status}
         </p>
-        <p className="mt-2 text-lg font-semibold text-neutral-900">
+        <p className="mt-2 text-lg font-semibold text-ink">
           {appointment.serviceNameSnapshot}
         </p>
-        <p className="text-neutral-800">com {appointment.professionalNameSnapshot}</p>
-        <p className="mt-1 text-neutral-800 first-letter:uppercase">
+        <p className="text-ink">com {appointment.professionalNameSnapshot}</p>
+        <p className="mt-1 text-ink first-letter:uppercase">
           {dayLabel}, {localTime}
         </p>
-        <p className="mt-2 text-neutral-700">
+        <p className="mt-2 text-ink">
           {(appointment.priceSnapshotMinor / 100).toLocaleString("pt-BR", {
             style: "currency",
             currency: "BRL",
@@ -74,12 +74,12 @@ export default async function ManageAppointmentPage({ params }: { params: { toke
       </section>
 
       {shop.cancellationPolicy ? (
-        <p className="mt-4 text-sm text-neutral-500">{shop.cancellationPolicy}</p>
+        <p className="mt-4 text-sm text-ink-secondary">{shop.cancellationPolicy}</p>
       ) : null}
 
-      <p className="mt-4 text-sm text-neutral-500">
+      <p className="mt-4 text-sm text-ink-secondary">
         Quer ver todos os seus horários num lugar só?{" "}
-        <a href="/entrar-cliente" className="font-medium text-neutral-900 underline">
+        <a href="/entrar-cliente" className="font-medium text-ink underline">
           Criar conta
         </a>
       </p>
