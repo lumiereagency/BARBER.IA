@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { PRODUCT_NAME } from "@barber/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BARBER SaaS",
+  title: { default: PRODUCT_NAME, template: `%s · ${PRODUCT_NAME}` },
   description: "Agenda online para barbearias",
 };
 

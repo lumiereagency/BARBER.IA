@@ -311,9 +311,9 @@ junto da implementação, para não redesenhar duas vezes.
 
 | Categoria | Itens | Estado |
 |---|---|---|
-| Símbolo | Principal, positivo/negativo, monocromático, redução 16/24/32px | Aguardando o arquivo (decisão P2) — você vai enviar |
-| Wordmark | Horizontal, assinatura vertical | Nome resolvido: **CUTLIST** — pode ser produzido assim que o símbolo chegar |
-| Ícone de app | PWA, favicon | Pendente do símbolo final |
+| Símbolo | Principal, positivo/negativo, monocromático, redução 16/24/32px | **Entregue** — `docs/design/assets/simbolo/`, vetorizado a partir da imagem enviada |
+| Wordmark | Horizontal, assinatura vertical | **Entregue** — `docs/design/assets/wordmark/`, com "Cutlist" em title case (a confirmar — ver README do diretório) |
+| Ícone de app | PWA, favicon | **Entregue e já aplicado**: `apps/web/app/icon.svg` e `apple-icon.png` usam o símbolo real. `docs/design/assets/app-icon/` guarda os tamanhos de PWA (192/512) para quando o manifesto existir |
 | Fotografia | Ambiente real, iluminação quente, profissionais trabalhando, detalhes de acabamento — mínimo 12 imagens para cobrir hero, onboarding, site institucional | Placeholder por decisão (P4) — blocos de cor/gradiente até haver fonte |
 | Assets próprios | Orb de partículas, textura de grão, halo laranja, 3 mini-ilustrações (agenda vazia, cliente retornando, vaga preenchida), padrão geométrico, avatar fallback com iniciais, placeholder de foto | A produzir no próximo marco visual, depois do símbolo aprovado (dependem dele) |
 | Ícones de interface | `lucide-react`, traço 1.75–2px, 16/20/24px | A instalar — não requer decisão, só o marco de implementação |
@@ -356,14 +356,13 @@ em que o símbolo existir — sem símbolo aprovado não há o que animar.
 
 | # | Decisão | Resposta | O que isso muda na implementação |
 |---|---|---|---|
-| P1 | Nome definitivo do produto | **CUTLIST** | `{{PRODUCT_NAME}}` deixa de ser placeholder. Vira uma constante `PRODUCT_NAME = "CUTLIST"` em `packages/config`, lida de env var (`NEXT_PUBLIC_PRODUCT_NAME` ou similar) com esse valor como default — nunca hardcoded espalhado pelo código, como o §2 exige. Atualiza `<title>` em `apps/web/app/layout.tsx`, o wordmark, e os textos de SMS/e-mail que hoje dizem "BARBER SaaS" em teste. |
-| P2 | Arquivo-mestre do símbolo | **Você vai enviar a imagem gerada** | Aguardando o arquivo. Quando chegar, eu vetorizo a partir dele seguindo as regras do §5.1 (sem tesoura, sem 3D, sem deformar, sem trocar proporção) e produzo o conjunto completo do §5 (positivo/negativo, monocromático, reduções 16/24/32px, ícone de PWA, favicon). Até lá, o canvas mantém o placeholder geométrico explícito. |
+| P1 | Nome definitivo do produto | **CUTLIST** | `{{PRODUCT_NAME}}` deixa de ser placeholder. Implementado como `PRODUCT_NAME` em `packages/config`, lido de env var (`NEXT_PUBLIC_PRODUCT_NAME`) com **`"Cutlist"`** como default — title case, não a caixa alta com que você respondeu, seguindo a regra do §5 contra caixa alta pesada como padrão. **Se a intenção era marca sempre em caixa alta, me avise** — é uma troca de uma linha. Já aplicado: `<title>` em `apps/web/app/layout.tsx`, o heading da home (`apps/web/app/page.tsx`) e o wordmark em `docs/design/assets/wordmark/`. |
+| P2 | Arquivo-mestre do símbolo | **Recebido e vetorizado** em 2026-09-04 | Traçado com `potrace` a partir da imagem enviada, normalizado e testado a 16/24/32/128px (§5.1). Ver `docs/design/assets/README.md` para o conjunto completo (símbolo, wordmark, favicon/ícone de app) e o que ainda falta (contorno do wordmark para impressão, manifesto PWA). Já aplicado ao favicon e ao apple-icon reais do app. |
 | P3 | Tema escuro só, ou os dois já no MVP | **Os dois já no MVP** | Muda o escopo do próximo marco visual: em vez de só aplicar os tokens dark, a implementação sai direto com `data-theme` (ou equivalente) alternando os dois conjuntos de tokens da seção 3.5, alternância persistida por usuário, e QA dobrado — cada tela verificada nos dois temas antes de fechar o marco, não só no escuro. |
 | P4 | Fonte da fotografia premium | **Placeholders por enquanto** | O canvas e a implementação seguem com blocos de cor/gradiente no lugar de foto. Sem bloqueio — troco por fotos reais assim que você tiver uma fonte (própria ou banco licenciado). |
 | P5 | Site institucional — mesmo app ou separado | **Mesmo `apps/web`** | A rota `/`, hoje placeholder, vira o site institucional do §15 (hero, planos, FAQ) dentro do mesmo Next.js do painel — sem segundo deploy, sem duplicar CI/tokens. |
 
-Com as cinco decisões resolvidas, os oito entregáveis do §1 estão completos e
-nada mais bloqueia o início do próximo marco visual — exceto o arquivo do
-símbolo (P2), que só trava a vetorização final, não o resto do retema
-(tokens, componentes, tema claro/escuro, site institucional podem avançar em
-paralelo usando o placeholder geométrico até o arquivo chegar).
+Com as cinco decisões resolvidas — símbolo incluído, já vetorizado e aplicado
+ao favicon real — nada mais bloqueia o início do próximo marco visual: tokens,
+componentes, tema claro/escuro e site institucional podem avançar. A única
+verificação pendente é a grafia do nome (Cutlist vs. CUTLIST, P1 acima).
