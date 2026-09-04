@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  BarChart3,
   CalendarDays,
   House,
   LogOut,
@@ -36,6 +37,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       label: "Agenda Inteligente",
       icon: Sparkles,
       permission: "smart_agenda.read" as const,
+    },
+    {
+      href: "/relatorios",
+      label: "Relatórios",
+      icon: BarChart3,
+      permission: "reports.advanced.read" as const,
     },
     { href: "/equipe", label: "Equipe", icon: Users, permission: "professionals.read" as const },
     { href: "/gestao/servicos", label: "Serviços", icon: Scissors, permission: "services.read" as const },
