@@ -182,7 +182,7 @@ aplicados.
 | `state-error` | `#F25F68` |
 | `state-info` | `#5A9EF7` |
 
-### 3.5 Tema claro (arquitetura pronta, não ligado no MVP — decisão P3)
+### 3.5 Tema claro (ligado desde o MVP — decisão P3)
 
 | Token | Valor |
 |---|---|
@@ -300,8 +300,10 @@ real (nomes, horários, valores), não em texto de exemplo.
 **Canvas publicado**: https://claude.ai/code/artifact/3366011f-ac7d-476b-862e-b90dba0aac06 —
 seis pranchas em um canvas só: fundamentos (tokens), amostra de componentes,
 wireframe do onboarding, wireframe da reserva pública, e as duas telas em alta
-fidelidade. Os placeholders explícitos das decisões P1/P2/P4 (nome, símbolo,
-fotografia) aparecem marcados como tal dentro do próprio canvas, não escondidos.
+fidelidade. Publicado antes da resolução das decisões da seção 9 — ainda mostra
+`{{PRODUCT_NAME}}` e o símbolo placeholder, não "CUTLIST" nem o arquivo real do
+logo (que chega com a decisão P2). Será atualizado no próximo marco visual,
+junto da implementação, para não redesenhar duas vezes.
 
 ---
 
@@ -309,10 +311,10 @@ fotografia) aparecem marcados como tal dentro do próprio canvas, não escondido
 
 | Categoria | Itens | Estado |
 |---|---|---|
-| Símbolo | Principal, positivo/negativo, monocromático, redução 16/24/32px | **Pendente — decisão P2** |
-| Wordmark | Horizontal, assinatura vertical | Pendente do nome final (decisão P1) |
+| Símbolo | Principal, positivo/negativo, monocromático, redução 16/24/32px | Aguardando o arquivo (decisão P2) — você vai enviar |
+| Wordmark | Horizontal, assinatura vertical | Nome resolvido: **CUTLIST** — pode ser produzido assim que o símbolo chegar |
 | Ícone de app | PWA, favicon | Pendente do símbolo final |
-| Fotografia | Ambiente real, iluminação quente, profissionais trabalhando, detalhes de acabamento — mínimo 12 imagens para cobrir hero, onboarding, site institucional | **Pendente — decisão P4** (licenciamento) |
+| Fotografia | Ambiente real, iluminação quente, profissionais trabalhando, detalhes de acabamento — mínimo 12 imagens para cobrir hero, onboarding, site institucional | Placeholder por decisão (P4) — blocos de cor/gradiente até haver fonte |
 | Assets próprios | Orb de partículas, textura de grão, halo laranja, 3 mini-ilustrações (agenda vazia, cliente retornando, vaga preenchida), padrão geométrico, avatar fallback com iniciais, placeholder de foto | A produzir no próximo marco visual, depois do símbolo aprovado (dependem dele) |
 | Ícones de interface | `lucide-react`, traço 1.75–2px, 16/20/24px | A instalar — não requer decisão, só o marco de implementação |
 | Fontes | Manrope (self-hosted via `next/font`) | A instalar |
@@ -350,18 +352,18 @@ em que o símbolo existir — sem símbolo aprovado não há o que animar.
 
 ---
 
-## 9. Decisões pendentes (mudam o próximo marco visual)
+## 9. Decisões — resolvidas em 2026-09-04
 
-| # | Decisão | Por que importa | Minha recomendação |
+| # | Decisão | Resposta | O que isso muda na implementação |
 |---|---|---|---|
-| P1 | Nome definitivo do produto | `{{PRODUCT_NAME}}` precisa de valor real antes do wordmark, do `<title>` e de qualquer texto de e-mail/SMS | Modelar como uma única constante em `packages/config` (`PRODUCT_NAME`), lida de env var com fallback `"BARBER"` — troca o nome em um lugar só, nunca espalhado pelo código, como o §2 exige |
-| P2 | Arquivo-mestre do símbolo | A Parte 4 descreve a "terceira direção" e diz que a imagem gerada é direção, não arquivo final — preciso do arquivo (ou de confirmação para eu desenhar um vetor original a partir da descrição do §2) antes de vetorizar | Aguardando: se você tem a imagem gerada, envie; senão eu construo um símbolo geométrico original a partir da descrição (duas formas arredondadas, corte diagonal) para aprovação |
-| P3 | Lançar só com dark, ou já ligar o tema claro | O §8 permite lançar só dark, mas pede a arquitetura pronta para claro | Recomendo dark-only no MVP visual — os tokens da seção 3 já preveem os dois, então ligar claro depois é troca de valor, não retrabalho |
-| P4 | Fonte da fotografia premium | §13 proíbe banco de imagem com pose artificial e exige licença comercial confirmada; não posso gerar fotografia realista de pessoas nem confirmar licença por conta própria | Preciso que você forneça fotos próprias (sessão real) ou aprove um banco específico com licença comercial — até lá, o canvas usa blocos de cor/gradiente no lugar de foto, marcados como placeholder |
-| P5 | Site institucional no mesmo `apps/web`, ou app separado | Hoje é uma rota (`/`) dentro do mesmo Next.js do painel | Recomendo manter no mesmo app: tokens e componentes compartilhados sem duplicar, e o `/` de hoje já é essa rota — separar exigiria criar um segundo deploy sem ganho claro no estágio atual |
+| P1 | Nome definitivo do produto | **CUTLIST** | `{{PRODUCT_NAME}}` deixa de ser placeholder. Vira uma constante `PRODUCT_NAME = "CUTLIST"` em `packages/config`, lida de env var (`NEXT_PUBLIC_PRODUCT_NAME` ou similar) com esse valor como default — nunca hardcoded espalhado pelo código, como o §2 exige. Atualiza `<title>` em `apps/web/app/layout.tsx`, o wordmark, e os textos de SMS/e-mail que hoje dizem "BARBER SaaS" em teste. |
+| P2 | Arquivo-mestre do símbolo | **Você vai enviar a imagem gerada** | Aguardando o arquivo. Quando chegar, eu vetorizo a partir dele seguindo as regras do §5.1 (sem tesoura, sem 3D, sem deformar, sem trocar proporção) e produzo o conjunto completo do §5 (positivo/negativo, monocromático, reduções 16/24/32px, ícone de PWA, favicon). Até lá, o canvas mantém o placeholder geométrico explícito. |
+| P3 | Tema escuro só, ou os dois já no MVP | **Os dois já no MVP** | Muda o escopo do próximo marco visual: em vez de só aplicar os tokens dark, a implementação sai direto com `data-theme` (ou equivalente) alternando os dois conjuntos de tokens da seção 3.5, alternância persistida por usuário, e QA dobrado — cada tela verificada nos dois temas antes de fechar o marco, não só no escuro. |
+| P4 | Fonte da fotografia premium | **Placeholders por enquanto** | O canvas e a implementação seguem com blocos de cor/gradiente no lugar de foto. Sem bloqueio — troco por fotos reais assim que você tiver uma fonte (própria ou banco licenciado). |
+| P5 | Site institucional — mesmo app ou separado | **Mesmo `apps/web`** | A rota `/`, hoje placeholder, vira o site institucional do §15 (hero, planos, FAQ) dentro do mesmo Next.js do painel — sem segundo deploy, sem duplicar CI/tokens. |
 
-Nenhuma dessas cinco bloqueia a aprovação dos entregáveis 1–5, 7 e 8 (mapa,
-sitemap, tokens, componentes, wireframes, assets, motion) — só bloqueiam o
-entregável 6 (alta fidelidade final) e a implementação. O canvas da seção 6
-usa placeholders explícitos onde a decisão está pendente (símbolo, fotografia,
-nome), para não fingir uma resposta que ainda não existe.
+Com as cinco decisões resolvidas, os oito entregáveis do §1 estão completos e
+nada mais bloqueia o início do próximo marco visual — exceto o arquivo do
+símbolo (P2), que só trava a vetorização final, não o resto do retema
+(tokens, componentes, tema claro/escuro, site institucional podem avançar em
+paralelo usando o placeholder geométrico até o arquivo chegar).
