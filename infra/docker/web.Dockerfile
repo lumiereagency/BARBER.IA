@@ -15,6 +15,8 @@ COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/api-contracts/package.json packages/api-contracts/
 COPY packages/config/package.json packages/config/
+COPY packages/integrations/package.json packages/integrations/
+COPY packages/entitlements/package.json packages/entitlements/
 RUN pnpm install --frozen-lockfile
 
 # --- build ------------------------------------------------------------------
