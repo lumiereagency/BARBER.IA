@@ -49,26 +49,33 @@ openssl rand -base64 24
 ## 3. Escrever `.env.prod`
 
 Fora do controle de versão (já no `.gitignore`). Baseado em `.env.example`,
-com os campos que o `docker-compose.prod.yml` exige:
+com os campos que o `docker-compose.prod.yml` exige.
+
+**Sem aspas nos valores** — diferente do `.env` de desenvolvimento (lido pelo
+`dotenv-cli`, que aceita aspas). `docker compose --env-file` remove aspas ao
+interpolar, mas `docker run --env-file` (passo 5, migração) **não remove** —
+um valor entre aspas vira literalmente `"valor"` dentro do container, e o
+Prisma recusa a `DATABASE_URL` porque ela não começa mais com `postgresql://`.
+Sem aspas, os dois comandos leem o mesmo arquivo do mesmo jeito.
 
 ```bash
-APP_DOMAIN="app.seudominio.com"
-APP_BASE_URL="https://app.seudominio.com"
-NODE_ENV="production"
+APP_DOMAIN=app.seudominio.com
+APP_BASE_URL=https://app.seudominio.com
+NODE_ENV=production
 
-POSTGRES_USER="barber"
-POSTGRES_PASSWORD="<gerado no passo 2>"
-POSTGRES_DB="barber_prod"
-DATABASE_URL="postgresql://barber:<mesma-senha>@postgres:5432/barber_prod"
-REDIS_URL="redis://redis:6379"
+POSTGRES_USER=barber
+POSTGRES_PASSWORD=<gerado no passo 2>
+POSTGRES_DB=barber_prod
+DATABASE_URL=postgresql://barber:<mesma-senha>@postgres:5432/barber_prod
+REDIS_URL=redis://redis:6379
 
-AUTH_SECRET="<gerado no passo 2>"
-TOKEN_HMAC_SECRET="<gerado no passo 2>"
-ENCRYPTION_KEY="<gerado no passo 2>"
+AUTH_SECRET=<gerado no passo 2>
+TOKEN_HMAC_SECRET=<gerado no passo 2>
+ENCRYPTION_KEY=<gerado no passo 2>
 
 # Teste interno: aceito explicitamente. Nunca para cliente real — ver
 # apps/web/lib/messaging.ts. Sem isto, o boot falha em NODE_ENV=production.
-SMS_PROVIDER="log"
+SMS_PROVIDER=log
 ```
 
 `DATABASE_URL`/`REDIS_URL` apontam para `postgres`/`redis` porque esses são os
