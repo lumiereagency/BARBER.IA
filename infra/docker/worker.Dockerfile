@@ -3,6 +3,10 @@
 # Contexto de build: raiz do repositório.
 
 FROM node:22-alpine AS base
+# O binário do Prisma detecta a versão do OpenSSL em tempo de execução; sem o
+# pacote instalado, a detecção falha e ele baixa/usa o motor errado — erro só
+# aparece rodando de verdade, nunca em teste local fora do Alpine.
+RUN apk add --no-cache openssl
 RUN corepack enable
 WORKDIR /repo
 
