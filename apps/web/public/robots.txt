@@ -1,0 +1,3 @@
+# Fase de teste interno — sem indexação até o lançamento público.
+User-agent: *
+Disallow: /
