@@ -1,0 +1,18 @@
+# Override para VPS compartilhada com outro app (ex.: já tem nginx nas
+# portas 80/443, como a Lumibase). Some com o serviço `proxy` (que não sobe
+# de qualquer forma sem --profile standalone-tls) e publica `web` só em
+# 127.0.0.1 — alcançável pelo nginx do host, nunca direto da internet.
+#
+# Uso:
+#   docker compose \
+#     -f infra/docker/docker-compose.prod.yml \
+#     -f infra/docker/docker-compose.shared-host.yml \
+#     --env-file .env.prod up -d
+#
+# A porta do host (127.0.0.1:3010 abaixo) é arbitrária — só precisa bater com
+# o `proxy_pass` do site do nginx (ver docs/deploy-inicial.md).
+
+services:
+  web:
+    ports:
+      - "127.0.0.1:3010:3000"

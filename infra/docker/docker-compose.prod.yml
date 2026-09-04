@@ -4,15 +4,24 @@
 # Eles só existem na rede interna do Docker — a defesa não depende de firewall
 # bem configurado. Apenas o proxy fala com a internet.
 #
-# Uso:
-#   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d
+# Uso — VPS dedicada a este app (Caddy dono das portas 80/443):
+#   docker compose -f infra/docker/docker-compose.prod.yml --profile standalone-tls --env-file .env.prod up -d
+#
+# Uso — VPS compartilhada com outro app que já tem nginx/Caddy nas portas
+# 80/443 (ver docs/deploy-inicial.md, seção "VPS compartilhada"): omitir
+# --profile deixa o serviço `proxy` de fora, e o override
+# docker-compose.shared-host.yml publica `web` só em 127.0.0.1, para o nginx
+# do host reverse-proxiar por hostname.
 
 name: barber
 
 services:
+  # Só sobe com --profile standalone-tls — numa VPS compartilhada, quem já
+  # possui as portas 80/443 é o proxy do host, não este.
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
+    profiles: ["standalone-tls"]
     ports:
       - "80:80"
       - "443:443"

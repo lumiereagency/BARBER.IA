@@ -9,12 +9,18 @@ no fim.
 
 ## 0. Pré-requisitos
 
-- VPS com Docker e Docker Compose v2 (`docker compose version`).
+- Docker e Docker Compose v2 na VPS (`docker compose version`). Se não
+  estiver instalado: `apt install docker.io docker-compose-v2`.
 - Domínio apontando para o IP da VPS: registro `A` (e `AAAA` se houver IPv6)
   para o domínio raiz ou subdomínio escolhido (ex.: `app.seudominio.com`).
-  Propague o DNS **antes** do passo 4 — o Caddy pede o certificado TLS na
-  primeira subida e precisa que o domínio já resolva para a VPS.
-- Portas 80 e 443 livres na VPS (só o `proxy` do compose as usa).
+  Propague o DNS **antes** do passo 4 — quem emite o certificado TLS (Caddy
+  ou certbot, dependendo do caminho abaixo) precisa que o domínio já resolva
+  para a VPS.
+- **Descubra antes de tudo se as portas 80/443 já têm dono**:
+  `sudo ss -tlnp | grep -E ':80 |:443 '`. Vazio → siga o caminho **4a**
+  (VPS dedicada a este app). Se aparecer `nginx`, `caddy`, `apache2` ou
+  outro processo → siga o caminho **4b** (VPS compartilhada com outro app).
+  Tentar usar o 4a com a porta já ocupada derruba o site que já está no ar.
 
 ## 1. Levar o código para a VPS
 
@@ -69,16 +75,81 @@ SMS_PROVIDER="log"
 nomes dos serviços na rede interna do Compose — não para `localhost` nem para
 o IP da VPS (Postgres e Redis não têm porta exposta, de propósito).
 
-## 4. Subir o stack
+## 4a. Subir o stack — VPS dedicada a este app
+
+Só quando o passo 0 confirmou que 80/443 estão livres.
 
 ```bash
-docker compose -f infra/docker/docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f infra/docker/docker-compose.prod.yml ps   # todos "healthy"
+docker compose -f infra/docker/docker-compose.prod.yml --profile standalone-tls --env-file .env.prod up -d --build
+docker compose -f infra/docker/docker-compose.prod.yml --profile standalone-tls ps   # todos "healthy"
 ```
 
-O Caddy pede o certificado Let's Encrypt sozinho na primeira subida — se o
-DNS ainda não tiver propagado, ele fica tentando; corrija o DNS e ele resolve
-sem precisar reiniciar nada.
+O Caddy (`--profile standalone-tls`) pede o certificado Let's Encrypt sozinho
+na primeira subida — se o DNS ainda não tiver propagado, ele fica tentando;
+corrija o DNS e ele resolve sem precisar reiniciar nada.
+
+Pule para o passo 5.
+
+## 4b. Subir o stack — VPS compartilhada com outro app
+
+Quando o passo 0 encontrou `nginx` (ou outro proxy) já dono de 80/443 — o
+caso de uma VPS que já hospeda outro site. Aqui é o nginx do host que fala
+com a internet; o container `web` fica só em `127.0.0.1`, inalcançável de
+fora, e o nginx repassa por nome de domínio.
+
+**Sem `proxy` no compose** (por isso o `--profile standalone-tls` do 4a fica
+de fora) **e com o override que publica a porta em loopback**:
+
+```bash
+docker compose \
+  -f infra/docker/docker-compose.prod.yml \
+  -f infra/docker/docker-compose.shared-host.yml \
+  --env-file .env.prod up -d --build
+docker compose -f infra/docker/docker-compose.prod.yml ps   # web/worker/postgres/redis "healthy"
+```
+
+Confirme que só o `web` publicou porta (`docker compose ps` mostra
+`127.0.0.1:3010->3000/tcp`) — `postgres` e `redis` continuam sem nenhuma.
+
+Novo site no nginx do host, `/etc/nginx/sites-available/app.seudominio.com`:
+
+```nginx
+server {
+    listen 80;
+    server_name app.seudominio.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3010;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+ln -s /etc/nginx/sites-available/app.seudominio.com /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+# TLS — o mesmo mecanismo que provavelmente já emitiu o certificado do outro
+# app neste host; confirme com `certbot certificates` antes, e ajuste se o
+# outro app usar algo diferente de certbot
+certbot --nginx -d app.seudominio.com
+```
+
+O certbot reescreve o bloco acima para redirecionar 80→443 e servir TLS
+sozinho — não precisa escrever o `listen 443` à mão.
+
+**Redação de log**: o `Caddyfile` deste repo (`infra/docker/Caddyfile`)
+redige token de URL (`/a/{token}`, `/vaga/{token}`) do log antes dele existir
+em texto puro em disco — sem isso, quem lê o log do proxy consegue cancelar a
+reserva de qualquer cliente (Parte 3 §10). Sem o Caddy nesse caminho, é o
+nginx do host que grava o log de acesso — ou aplique a mesma redação no
+`log_format` do site, ou desligue o access log para esse `server{}`
+(`access_log off;`).
+
+Pule para o passo 5.
 
 ## 5. Aplicar as migrações
 
