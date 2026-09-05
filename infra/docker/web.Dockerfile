@@ -61,4 +61,11 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "apps/web/server.js"]
+# O Docker injeta HOSTNAME=<id do container> em todo container; o server.js
+# do Next standalone lê essa variável e, se ela existir, escuta só nesse
+# endereço (o IP interno do container) em vez de todos (0.0.0.0) — 127.0.0.1
+# fica inalcançável, e é por isso que tanto o HEALTHCHECK acima quanto
+# qualquer chamada de dentro do próprio container falhavam. Sobrescrever
+# aqui, na hora de rodar (não como ENV — o Docker injetaria de novo por
+# cima), garante 0.0.0.0 de verdade.
+CMD ["sh", "-c", "HOSTNAME=0.0.0.0 node apps/web/server.js"]
