@@ -107,16 +107,24 @@ fora, e o nginx repassa por nome de domínio.
 **Sem `proxy` no compose** (por isso o `--profile standalone-tls` do 4a fica
 de fora) **e com o override que publica a porta em loopback**:
 
+**Importante**: o `web` da base (`docker-compose.prod.yml`) não tem `ports`
+nenhum, só `expose` — de propósito, é o override abaixo que publica a porta.
+Isso significa que **todo** comando (`down`, `up`, `ps`) tem que levar os
+dois `-f` sempre juntos; usar só um deles em qualquer um deles faz o `web`
+subir sem a porta publicada (`docker inspect` mostraria `"3000/tcp":null`).
+Para não depender de digitar os dois `-f` toda vez, fixe-os numa variável:
+
 ```bash
-docker compose \
-  -f infra/docker/docker-compose.prod.yml \
-  -f infra/docker/docker-compose.shared-host.yml \
-  --env-file .env.prod up -d --build
-docker compose -f infra/docker/docker-compose.prod.yml ps   # web/worker/postgres/redis "healthy"
+COMPOSE="docker compose -f infra/docker/docker-compose.prod.yml -f infra/docker/docker-compose.shared-host.yml --env-file .env.prod"
+
+$COMPOSE up -d --build
+$COMPOSE ps   # web/worker/postgres/redis "healthy"
 ```
 
 Confirme que só o `web` publicou porta (`docker compose ps` mostra
 `127.0.0.1:3010->3000/tcp`) — `postgres` e `redis` continuam sem nenhuma.
+Se quiser reconferir por fora do `ps`, `$COMPOSE port web 3000` deve
+responder `127.0.0.1:3010`.
 
 Novo site no nginx do host, `/etc/nginx/sites-available/app.seudominio.com`:
 
