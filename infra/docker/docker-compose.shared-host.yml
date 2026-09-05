@@ -14,5 +14,16 @@
 
 services:
   web:
+    # A rede `internal` (docker-compose.prod.yml) tem `internal: true` de
+    # propósito, para isolar postgres/redis da internet — mas isso também
+    # impede o Docker de montar a regra de NAT que uma porta publicada
+    # precisa: um container só numa rede internal nunca tem `ports:`
+    # aplicado de verdade, mesmo que `docker compose config` mostre a
+    # porta corretamente (o Compose valida a config, quem ignora o publish
+    # é o Engine). `edge` já existe no arquivo base (rede normal, hoje só
+    # usada pelo `proxy` no caminho 4a) — reaproveitada aqui para dar ao
+    # `web` uma rede não isolada, sem abrir mão do `internal` para
+    # continuar falando com postgres/redis.
+    networks: [internal, edge]
     ports:
       - "127.0.0.1:3010:3000"
